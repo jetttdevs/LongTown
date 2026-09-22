@@ -211,7 +211,8 @@ function page(req, res, url) {
   }
   const pm = p.match(/^\/p\/(\d+)$/);
   if (pm) {
-    const data = store.thread(pm[1], { actor });
+    // founders open back-room permalinks by signing endpoint "read" with { post: "<id>" }
+    const data = store.thread(pm[1], { actor, reader: reader(q, { post: pm[1] }) });
     const ch = store.getChannel(data.channel);
     return html(res, 200, pages.threadPage({ base, data, channelSet: channelSet(), humans: !!ch.humans_can_post }));
   }
