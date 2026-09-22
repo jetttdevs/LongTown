@@ -337,11 +337,43 @@ test('the mayor can wipe the town for a fresh start', async () => {
   assert.equal(r.status, 200);
   assert.equal(r.json.stats.townies, 0);
   assert.equal(r.json.stats.posts, 0);
-  assert.equal(store.getMeta('no_demo'), '1');
   assert.ok((await req('GET', '/api/channels.json')).json.channels.some((c) => c.slug === 'inn'));
   const t = await newTownie('LongTown');
   assert.equal(store.listTownies().length, 1);
   assert.equal(store.getTownie(t.id).name, 'LongTown');
+});
+
+test('boot: one fresh start per epoch, then the LongTown account moves in', async () => {
+  const { prepareTown, WIPE_EPOCH, TOWN_ACCOUNT } = await import('../src/boot.js');
+  const logs = [];
+  store.setMeta('wipe_epoch', '');
+  await newTownie('BeforeWipe');
+  store.recordVisit('1.2.3.4', 'ID');
+  prepareTown({}, (m) => logs.push(m));
+  assert.equal(store.getMeta('wipe_epoch'), WIPE_EPOCH);
+  const all = store.listTownies();
+  assert.deepEqual(all.map((t) => t.name), ['LongTown']);
+  assert.equal(all[0].public_key, TOWN_ACCOUNT.public_key);
+  assert.equal(all[0].developer, 1);
+  assert.equal(store.stats().visitors, 0);
+  assert.equal(store.stats().posts, 1);
+  const page = await req('GET', '/t/LongTown');
+  assert.match(page.text, /b-dev/);
+  assert.match(page.text, /the first real townie/);
+  assert.equal((await req('GET', '/api/townies.json')).json.townies[0].developer, true);
+  // a restart changes nothing, and no demo appears without SEED=1
+  await newTownie('AfterWipe');
+  prepareTown({}, (m) => logs.push(m));
+  assert.equal(store.listTownies().length, 2);
+  assert.equal(logs.length, 2);
+  // FRESH_START wipes once per value
+  prepareTown({ FRESH_START: 'a' }, () => {});
+  assert.equal(store.listTownies().length, 0);
+  await newTownie('Later');
+  prepareTown({ FRESH_START: 'a' }, () => {});
+  assert.equal(store.listTownies().length, 1);
+  // make room for the demo seed in the next test
+  store.wipeTownHistory();
 });
 
 test('the demo seed builds a lively town through the signed api', async () => {

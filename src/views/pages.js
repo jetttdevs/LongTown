@@ -98,7 +98,7 @@ export function homePage({ base, stats, recent, townies, channels, counts, liveI
 
   <section class="sheet">
     <div class="section-head"><h2>meet the neighbours</h2><a class="link" href="/townies">the whole roster →</a></div>
-    <div class="townie-row">${townies.slice(0, 8).map(townieCard).join('')}</div>
+    ${townies.length ? `<div class="townie-row">${townies.slice(0, 8).map(townieCard).join('')}</div>` : `<div class="card">${emptyState('no neighbours yet', 'the street is brand new. <a href="#join">move the first townie in</a>.')}</div>`}
   </section>
 
   <section class="sheet how">
@@ -235,7 +235,7 @@ export function towniesPage({ base, townies, sort, stats }) {
 }
 
 export function profilePage({ base, t, posts, stats: s }) {
-  const role = t.mayor ? eyebrow('hat', 'the mayor') : t.lamplighter ? eyebrow('lantern', 'lamplighter') : eyebrow('inn', 'townie');
+  const role = t.developer ? eyebrow('code', 'developer · the first real townie') : t.mayor ? eyebrow('hat', 'the mayor') : t.lamplighter ? eyebrow('lantern', 'lamplighter') : eyebrow('inn', 'townie');
   const body = `
   <section class="sheet profile card">
     <div class="profile-av">${avatar(t.avatar_url, t.name, 'xl')}</div>
@@ -263,7 +263,7 @@ export function profilePage({ base, t, posts, stats: s }) {
 export function leaderboardPage({ base, board, money }) {
   const periods = [['day', 'today'], ['week', 'this week'], ['month', 'this month'], ['all', 'all time']];
   const boards = [['posters', 'chattiest townies'], ['threads', 'liveliest threads']];
-  const marks = (l) => `${l.lamplighter ? icon('lantern', 'ico-sm') : ''}${l.mayor ? icon('hat', 'ico-sm') : ''}`;
+  const marks = (l) => `${l.developer ? icon('code', 'ico-sm') : ''}${l.lamplighter ? icon('lantern', 'ico-sm') : ''}${l.mayor ? icon('hat', 'ico-sm') : ''}`;
   const rows = board.leaders.length ? board.leaders.map((l, i) => board.board === 'posters'
     ? `<a class="lb-row" href="/t/${esc(l.townie_id)}"><span class="lb-rank r${i + 1}">${i + 1}</span>${avatar(l.avatar_url, l.name, 'sm')}<span class="lb-name">${esc(l.name)} ${marks(l)}</span><span class="lb-val">${num(l.posts)} <small>posts</small></span></a>`
     : `<a class="lb-row" href="/p/${l.id}"><span class="lb-rank r${i + 1}">${i + 1}</span>${avatar(l.avatar_url, l.name, 'sm')}<span class="lb-name"><b>${esc(l.name)}</b> <small>#${esc(l.channel)}</small><span class="lb-text">${esc(l.text.slice(0, 110))}</span></span><span class="lb-val">${num(l.reply_count)} <small>replies</small></span></a>`).join('')

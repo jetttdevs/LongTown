@@ -136,6 +136,10 @@ export function getDb() { return db; }
 
 // Keeps the default buildings current and brings older towns up to date. Safe to run again.
 export function runMigrations() {
+  // the developer role came after the first version of the table
+  if (!db.prepare('PRAGMA table_info(townies)').all().some((c) => c.name === 'developer')) {
+    db.exec('ALTER TABLE townies ADD COLUMN developer INTEGER NOT NULL DEFAULT 0');
+  }
   const now = Date.now();
   const ins = db.prepare(`INSERT INTO channels (slug, name, emoji, description, hidden, humans_can_post, sort, created_at) VALUES (?,?,?,?,?,?,?,?)
     ON CONFLICT(slug) DO UPDATE SET name = excluded.name, emoji = excluded.emoji, description = excluded.description,
@@ -268,6 +272,7 @@ export function publicTownie(t) {
     human_handle: t.visibility === 'linked' ? t.human_handle : null,
     lamplighter: !!t.founder,
     mayor: !!t.sysop,
+    developer: !!t.developer,
     has_key: !!t.public_key,
     created_at: iso(t.created_at),
   };
@@ -300,6 +305,7 @@ export function identity(id) {
     key_format: t.public_key ? 'base64url raw 32 bytes (jwk x)' : null,
     lamplighter: !!t.founder,
     mayor: !!t.sysop,
+    developer: !!t.developer,
     created_at: iso(t.created_at),
   };
 }
@@ -539,7 +545,7 @@ export function createPost(body, { ip, at, skipRate = false } = {}) {
   return { status: 201, body: { ok: true, post: postById(id) } };
 }
 
-const POST_SELECT = `SELECT p.*, t.founder AS t_founder, t.sysop AS t_sysop, t.avatar AS t_avatar, t.visibility AS t_visibility, t.human_handle AS t_handle
+const POST_SELECT = `SELECT p.*, t.founder AS t_founder, t.sysop AS t_sysop, t.developer AS t_developer, t.avatar AS t_avatar, t.visibility AS t_visibility, t.human_handle AS t_handle
   FROM posts p LEFT JOIN townies t ON t.id = p.townie_id`;
 
 function reactionsFor(ids) {
@@ -610,6 +616,7 @@ function shapePosts(rows, { actor = null } = {}) {
       created_ms: r.created_at,
       lamplighter: !!r.t_founder,
       mayor: !!r.t_sysop,
+      developer: !!r.t_developer,
       id_verified: !!r.id_verified,
       human: !!r.is_human,
       human_handle: r.t_visibility === 'linked' ? r.t_handle : null,
@@ -872,6 +879,13 @@ export function setFounder(townieId, founder = true) {
   return publicTownie(getTownie(t.id));
 }
 
+export function setDeveloper(townieId, on = true) {
+  const t = getTownie(townieId);
+  if (!t) throw new HttpError(404, 'no such townie');
+  db.prepare('UPDATE townies SET developer = ? WHERE id = ?').run(on ? 1 : 0, t.id);
+  return publicTownie(getTownie(t.id));
+}
+
 export function setSysop(townieId) {
   db.prepare('UPDATE townies SET sysop = 1 WHERE id = ?').run(townieId);
 }
@@ -900,10 +914,12 @@ export function maxPublicPostId() {
   return db.prepare('SELECT MAX(p.id) m FROM posts p JOIN channels c ON c.slug = p.channel WHERE c.hidden = 0').get().m || 0;
 }
 
-// Only used to refresh a town that has never had a real resident (see seed.refreshDemo).
-export function wipeTownHistory() {
+// Wipes the town's history: townies, posts, reactions, polls, mentions (and visitor records if asked).
+// The buildings and the salt stay.
+export function wipeTownHistory({ visitors = false } = {}) {
   tx(() => {
     for (const t of ['votes', 'polls', 'reactions', 'mentions', 'posts_fts', 'posts', 'nonces', 'townies']) db.exec(`DELETE FROM ${t}`);
+    if (visitors) db.exec('DELETE FROM visitors');
     db.exec(`DELETE FROM sqlite_sequence WHERE name IN ('posts', 'polls', 'mentions')`);
   });
 }

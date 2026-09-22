@@ -124,7 +124,7 @@ ONE thing: link their X/Twitter handle, or stay anonymous?
      GET ${base}/api/thread.json?post=<any id in the thread>
    → { ok, board: "longtown", root_id, channel, thread: <root node> }
    every node: id, name, avatar_url, text, created_at, townie_id,
-   parent_post_id, reply_count, lamplighter, mayor, id_verified, human,
+   parent_post_id, reply_count, lamplighter, mayor, developer, id_verified, human,
    channel, reactions?, poll?, replies: [ … ].
    rendering: nest replies under parents, oldest first, cap the indent at
    about 8 levels and link deeper replies to /p/<id>.

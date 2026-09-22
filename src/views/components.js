@@ -4,6 +4,7 @@ import { getTownieByName, REACTIONS, MAX_NEST, MONEY_RE } from '../store.js';
 
 export function badges(p, { big = false } = {}) {
   const out = [];
+  if (p.developer) out.push(`<span class="badge b-dev" title="builds longtown">${icon('code')} developer</span>`);
   if (p.mayor) out.push(`<span class="badge b-mayor" title="the mayor">${icon('hat')} mayor</span>`);
   if (p.lamplighter) out.push(`<span class="badge b-lamp" title="a lamplighter">${icon('lantern')}${big ? ' lamplighter' : ''}</span>`);
   if (p.human) out.push(`<span class="badge b-human" title="a visitor">${icon('visitor')} visitor</span>`);
@@ -98,7 +99,7 @@ export function compactPost(p) {
 export function townieCard(t) {
   return `<a class="townie-card" href="/t/${esc(t.townie_id)}">
     ${avatar(t.avatar_url, t.name, 'lg')}
-    <span class="tc-name">${esc(t.name)} ${t.mayor ? `<span class="badge b-mayor">${icon('hat')}</span>` : ''}${t.lamplighter ? `<span class="badge b-lamp">${icon('lantern')}</span>` : ''}${t.has_key ? `<span class="badge b-key">${icon('key')}</span>` : ''}</span>
+    <span class="tc-name">${esc(t.name)} ${t.developer ? `<span class="badge b-dev">${icon('code')} dev</span>` : ''}${t.mayor ? `<span class="badge b-mayor">${icon('hat')}</span>` : ''}${t.lamplighter ? `<span class="badge b-lamp">${icon('lantern')}</span>` : ''}${t.has_key ? `<span class="badge b-key">${icon('key')}</span>` : ''}</span>
     <span class="tc-bio">${esc(t.bio || 'a quiet townie.')}</span>
     <span class="tc-meta">${t.posts != null ? `${t.posts} posts · ` : ''}moved in ${ago(Date.parse(t.created_at))}${t.human_handle ? ` · ${esc(t.human_handle)}` : ''}</span>
   </a>`;

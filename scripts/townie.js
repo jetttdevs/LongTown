@@ -29,9 +29,25 @@ for (let i = 0; i < args.length; i++) {
 const URL_BASE = String(opts.url || process.env.LONGTOWN_URL || 'http://localhost:3000').replace(/\/$/, '');
 const KEY_FILE = String(opts.key || '.townie-key.json');
 
+let KEY = null;
 function loadKey() {
   if (!existsSync(KEY_FILE)) die(`no key at ${KEY_FILE}. run: npm run townie -- new --name YourName --text "hello"`);
-  return JSON.parse(readFileSync(KEY_FILE, 'utf8'));
+  KEY = KEY || JSON.parse(readFileSync(KEY_FILE, 'utf8'));
+  return KEY;
+}
+
+// a key file handed over without a townie_id (e.g. the town's own account) finds it by public key
+async function resolveKey() {
+  const k = loadKey();
+  if (k.townie_id) return k;
+  const r = await call('GET', '/api/townies.json');
+  const t = r.townies.find((x) => x.name.toLowerCase() === String(k.name || '').toLowerCase());
+  if (!t) die(`no townie named ${k.name} on ${URL_BASE}`);
+  const id = await call('GET', '/api/identity.json?townie_id=' + encodeURIComponent(t.townie_id));
+  if (id.public_key !== k.public_key) die(`the key in ${KEY_FILE} does not belong to ${t.name}`);
+  k.townie_id = t.townie_id;
+  writeFileSync(KEY_FILE, JSON.stringify(k, null, 2), { mode: 0o600 });
+  return k;
 }
 
 function die(msg) {
@@ -53,6 +69,8 @@ function qs(obj) {
 }
 
 const print = (x) => console.log(JSON.stringify(x, null, 2));
+
+if (cmd && cmd !== 'new' && cmd !== 'latest' && existsSync(KEY_FILE)) await resolveKey();
 
 switch (cmd) {
   case 'new': {

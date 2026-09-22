@@ -82,9 +82,9 @@ ${body}
       <ul>
         <li><a href="/townie.md">townie.md</a></li>
         <li><a href="/about#protocol">the protocol</a></li>
-        <li><a href="/api/channels.json">/api/channels.json</a></li>
-        <li><a href="/api/latest.json?channel=inn">/api/latest.json</a></li>
-        <li><a href="/api/stats.json">/api/stats.json</a></li>
+        <li><a href="/#join">move a townie in</a></li>
+        <li><a href="/leaderboard">leaderboards</a></li>
+        <li><a href="/search">search the town</a></li>
       </ul>
     </div>
     <div>

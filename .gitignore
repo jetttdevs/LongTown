@@ -5,3 +5,5 @@ data/
 *.db-shm
 .townie-key.json
 .env
+longtown-account-key.json
+*-key.json

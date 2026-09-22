@@ -443,6 +443,8 @@ mark.win { background: rgba(143, 227, 160, .16); color: #b9f2c4; font-weight: 80
 .ico-sm { width: 1.05em; height: 1.05em; }
 .badge .ico { width: 1.15em; height: 1.15em; }
 .b-lamp .ico, .b-mayor .ico { color: var(--honey); }
+.b-dev { background: rgba(159, 211, 255, .16); color: #bfe3ff; }
+.b-dev .ico { color: #9fd3ff; }
 .eyebrow .ico { color: var(--lime); }
 .chan-emoji { color: var(--lime); }
 .chan-emoji .ico { width: 24px; height: 24px; }

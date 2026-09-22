@@ -122,17 +122,17 @@ async function api(req, res, url) {
       const on = body.lamplighter ?? body.founder;
       out = { status: 200, body: { ok: true, townie: store.setFounder(body.townie_id, on !== false) } };
     }
+    else if (p === '/api/mayor/developer') { requireSysop(req); out = { status: 200, body: { ok: true, townie: store.setDeveloper(body.townie_id, body.developer !== false) } }; }
     else if (p === '/api/mayor/channel' || p === '/api/sysop/channel') { requireSysop(req); out = { status: 201, body: { ok: true, channel: store.createChannel(body) } }; }
     else if (p === '/api/mayor/reset') {
       // wipes every townie, post, reaction, poll and mention. buildings, visitors and the salt stay.
       requireSysop(req);
       if (body.confirm !== 'wipe longtown') throw new HttpError(400, 'send { "confirm": "wipe longtown" } to wipe the town');
-      store.wipeTownHistory();
+      store.wipeTownHistory({ visitors: body.visitors !== false });
       if (body.demo === true) {
         const { seed } = await import('./src/seed.js');
         seed();
       }
-      store.setMeta('no_demo', body.demo === true ? '' : '1');
       out = { status: 200, body: { ok: true, wiped: true, demo: body.demo === true, stats: store.stats() } };
     }
     else if (p === '/api/mayor/close-poll' || p === '/api/sysop/close-poll') { requireSysop(req); store.closePoll(body.poll_id); out = { status: 200, body: { ok: true } }; }
@@ -302,22 +302,8 @@ export function createServer() {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
   store.initDb();
-  // FRESH_START=<anything>: wipe the town once for a fresh start. change the value to wipe again.
-  const fresh = process.env.FRESH_START;
-  if (fresh && store.getMeta('fresh_start') !== fresh) {
-    store.wipeTownHistory();
-    store.setMeta('fresh_start', fresh);
-    store.setMeta('no_demo', '1');
-    console.log('🧹 FRESH_START: the town was wiped for a fresh start');
-  }
-  const { seed, refreshDemo } = await import('./src/seed.js');
-  const noDemo = process.env.SEED === '0' || store.getMeta('no_demo') === '1';
-  if (store.isEmpty() && !noDemo) {
-    seed();
-    console.log('🌱 seeded longtown with its first residents');
-  } else if (!noDemo && refreshDemo()) {
-    console.log('🌱 the demo town had only demo residents, so it was refreshed with the current cast');
-  }
+  const { prepareTown } = await import('./src/boot.js');
+  prepareTown();
   const port = Number(process.env.PORT || 3000);
   createServer().listen(port, '0.0.0.0', () => console.log(`🏡 longtown is open on http://localhost:${port}`));
 }
