@@ -1,11 +1,12 @@
 import { esc, flag, ago } from '../util.js';
-import { layout, townMap } from './layout.js';
+import { layout, townMap, buildingArt } from './layout.js';
 import { postCard, compactPost, townieCard, channelTabs, emptyState, avatar, badges, time } from './components.js';
 import { icon, channelIcon } from './icons.js';
 import { mayorSvg } from '../avatars.js';
 import { REACTIONS, FOUNDER_LIMIT } from '../store.js';
 
 const num = (n) => Number(n || 0).toLocaleString('en-US');
+const art = (slug) => buildingArt(slug) || channelIcon(slug);
 const eyebrow = (ico, text) => `<span class="eyebrow">${icon(ico, 'ico-sm')}${text}</span>`;
 
 function statsStrip(s) {
@@ -84,8 +85,8 @@ export function homePage({ base, stats, recent, townies, channels, counts, liveI
     <aside class="col-side">
       <div class="section-head"><h2>buildings</h2><a class="link" href="/town">map →</a></div>
       <div class="card chan-list">
-        ${channels.map((c) => `<a href="/c/${esc(c.slug)}" class="chan-row"><span class="chan-emoji">${channelIcon(c.slug)}</span><span><b>#${esc(c.slug)}</b><small>${esc(c.description)}</small></span><span class="count">${num(c.posts)}</span></a>`).join('')}
-        <div class="chan-row locked"><span class="chan-emoji">${icon('lantern')}</span><span><b>#lamplighters</b><small>the lamplighters' lodge. lamplighters only.</small></span><span class="count">${icon('lock', 'ico-sm')}</span></div>
+        ${channels.map((c) => `<a href="/c/${esc(c.slug)}" class="chan-row"><span class="chan-emoji">${art(c.slug)}</span><span><b>#${esc(c.slug)}</b><small>${esc(c.description)}</small></span><span class="count">${num(c.posts)}</span></a>`).join('')}
+        <div class="chan-row locked"><span class="chan-emoji">${art('lamplighters')}</span><span><b>#lamplighters</b><small>the lamplighters' lodge. lamplighters only.</small></span><span class="count">${icon('lock', 'ico-sm')}</span></div>
       </div>
     </aside>
   </section>
@@ -131,8 +132,8 @@ export function townPage({ base, channels, counts, stats }) {
   <section class="sheet"><div class="map-wrap card big">${townMap({ counts })}</div><p class="fine center">tap a building to walk in. scroll the street sideways on small screens.</p></section>
   <section class="sheet">
     <div class="bld-grid">
-      ${channels.map((c) => `<a class="bld-card" href="/c/${esc(c.slug)}"><span class="bld-emoji">${channelIcon(c.slug)}</span><h3>${esc(c.name)}</h3><p>${esc(c.description)}</p><span class="bld-meta">#${esc(c.slug)} · ${num(c.posts)} posts · ${num(c.posts_today)} today${c.last_post_at ? ` · last ${ago(Date.parse(c.last_post_at))}` : ''}</span></a>`).join('')}
-      <div class="bld-card locked"><span class="bld-emoji">${icon('lantern')}</span><h3>the lamplighters' lodge</h3><p>the lamplighters keep the street lit and decide what the town does next. what's said in the lodge stays in the lodge until they share it.</p><span class="bld-meta">#lamplighters · signed lamplighters only</span></div>
+      ${channels.map((c) => `<a class="bld-card" href="/c/${esc(c.slug)}"><span class="bld-emoji">${art(c.slug)}</span><h3>${esc(c.name)}</h3><p>${esc(c.description)}</p><span class="bld-meta">#${esc(c.slug)} · ${num(c.posts)} posts · ${num(c.posts_today)} today${c.last_post_at ? ` · last ${ago(Date.parse(c.last_post_at))}` : ''}</span></a>`).join('')}
+      <div class="bld-card locked"><span class="bld-emoji">${art('lamplighters')}</span><h3>the lamplighters' lodge</h3><p>the lamplighters keep the street lit and decide what the town does next. what's said in the lodge stays in the lodge until they share it.</p><span class="bld-meta">#lamplighters · signed lamplighters only</span></div>
     </div>
   </section>`;
   return layout({ title: 'the town', body, base, active: '/town' });
@@ -159,7 +160,7 @@ export function channelPage({ base, feed, channels, channelSet, before }) {
   const maxId = feed.posts.reduce((m, p) => Math.max(m, p.id), 0);
   const body = `
   <section class="sheet page-head chan-head">
-    <span class="chan-big">${channelIcon(c.slug)}</span>
+    <span class="chan-big">${art(c.slug)}</span>
     <div>
       <span class="eyebrow">#${esc(c.slug)}</span>
       <h1>${esc(c.name)}</h1>

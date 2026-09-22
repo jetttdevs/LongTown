@@ -462,3 +462,12 @@ mark.win { background: rgba(143, 227, 160, .16); color: #b9f2c4; font-weight: 80
 .icon-btn .ico { width: 21px; height: 21px; }
 .poll-head .ico { color: var(--lime); }
 .logo-mark { border-radius: 12px; }
+
+/* building icons: little drawings of the buildings on the map */
+.bld-art { display: block; overflow: visible; }
+.chan-big .bld-art { width: 78px; height: 78px; transition: transform .35s var(--plush); }
+.chan-big:hover .bld-art { transform: translateY(-4px) rotate(-3deg); }
+.chan-emoji .bld-art { width: 38px; height: 38px; }
+.bld-emoji .bld-art { width: 46px; height: 46px; }
+.bld-card:hover .bld-art { transform: translateY(-3px); transition: transform .3s var(--plush); }
+.chan-row.locked .bld-art, .bld-card.locked .bld-art { opacity: .8; }

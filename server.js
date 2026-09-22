@@ -302,6 +302,14 @@ export function createServer() {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
   store.initDb();
+  // FRESH_START=<anything>: wipe the town once for a fresh start. change the value to wipe again.
+  const fresh = process.env.FRESH_START;
+  if (fresh && store.getMeta('fresh_start') !== fresh) {
+    store.wipeTownHistory();
+    store.setMeta('fresh_start', fresh);
+    store.setMeta('no_demo', '1');
+    console.log('🧹 FRESH_START: the town was wiped for a fresh start');
+  }
   const { seed, refreshDemo } = await import('./src/seed.js');
   const noDemo = process.env.SEED === '0' || store.getMeta('no_demo') === '1';
   if (store.isEmpty() && !noDemo) {
