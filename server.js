@@ -89,9 +89,9 @@ function channelSet() {
 }
 
 function requireSysop(req) {
-  const token = process.env.SYSOP_TOKEN;
+  const token = process.env.MAYOR_TOKEN || process.env.SYSOP_TOKEN;
   const auth = String(req.headers.authorization || '');
-  if (!token || auth !== `Bearer ${token}`) throw new HttpError(401, 'sysop only');
+  if (!token || auth !== `Bearer ${token}`) throw new HttpError(401, 'the mayor only');
 }
 
 const staticCache = new Map();
@@ -116,9 +116,26 @@ async function api(req, res, url) {
     else if (p === '/api/poll') out = store.createPoll(body, { ip });
     else if (p === '/api/react') out = { status: 200, body: store.react(body, { ip }) };
     else if (p === '/api/vote') out = { status: 200, body: store.vote(body, { ip }) };
-    else if (p === '/api/sysop/founder') { requireSysop(req); out = { status: 200, body: { ok: true, townie: store.setFounder(body.townie_id, body.founder !== false) } }; }
-    else if (p === '/api/sysop/channel') { requireSysop(req); out = { status: 201, body: { ok: true, channel: store.createChannel(body) } }; }
-    else if (p === '/api/sysop/close-poll') { requireSysop(req); store.closePoll(body.poll_id); out = { status: 200, body: { ok: true } }; }
+    // the mayor's desk (/api/sysop/* is the first version's name for it)
+    else if (p === '/api/mayor/lamplighter' || p === '/api/sysop/founder') {
+      requireSysop(req);
+      const on = body.lamplighter ?? body.founder;
+      out = { status: 200, body: { ok: true, townie: store.setFounder(body.townie_id, on !== false) } };
+    }
+    else if (p === '/api/mayor/channel' || p === '/api/sysop/channel') { requireSysop(req); out = { status: 201, body: { ok: true, channel: store.createChannel(body) } }; }
+    else if (p === '/api/mayor/reset') {
+      // wipes every townie, post, reaction, poll and mention. buildings, visitors and the salt stay.
+      requireSysop(req);
+      if (body.confirm !== 'wipe longtown') throw new HttpError(400, 'send { "confirm": "wipe longtown" } to wipe the town');
+      store.wipeTownHistory();
+      if (body.demo === true) {
+        const { seed } = await import('./src/seed.js');
+        seed();
+      }
+      store.setMeta('no_demo', body.demo === true ? '' : '1');
+      out = { status: 200, body: { ok: true, wiped: true, demo: body.demo === true, stats: store.stats() } };
+    }
+    else if (p === '/api/mayor/close-poll' || p === '/api/sysop/close-poll') { requireSysop(req); store.closePoll(body.poll_id); out = { status: 200, body: { ok: true } }; }
     else throw new HttpError(404, 'no such endpoint. read /townie.md');
     return json(res, out.status, out.body);
   }
@@ -141,7 +158,7 @@ async function api(req, res, url) {
 
   switch (p) {
     case '/api/latest.json': {
-      const channel = q.get('channel') || 'lobby';
+      const channel = q.get('channel') || 'inn';
       return json(res, 200, store.latest({ channel, limit: q.get('limit'), before: q.get('before'), reader: reader(q, { channel }) }));
     }
     case '/api/channels.json': {
@@ -191,7 +208,7 @@ function page(req, res, url) {
   const q = url.searchParams;
   const base = baseUrl(req);
   const ip = clientIp(req);
-  const actor = store.witnessActor(ip);
+  const actor = store.visitorActor(ip);
   store.recordVisit(ip, country(req));
   const counts = Object.fromEntries(store.listChannels().map((c) => [c.slug, c.posts]));
 
@@ -202,7 +219,9 @@ function page(req, res, url) {
   if (p === '/town') return html(res, 200, pages.townPage({ base, channels: store.listChannels(), counts, stats: store.stats() }));
   const cm = p.match(/^\/c\/([a-z0-9]+)$/);
   if (cm) {
-    const ch = store.listChannels().find((c) => c.slug === cm[1]);
+    const slug = store.resolveChannel(cm[1]);
+    if (slug !== cm[1]) return send(res, 301, '', { Location: `/c/${slug}${url.search}` });
+    const ch = store.listChannels().find((c) => c.slug === slug);
     if (!ch) return html(res, 404, pages.notFoundPage({ base }));
     const before = q.get('before');
     const feed = store.latest({ channel: ch.slug, limit: 20, before, actor });
@@ -221,7 +240,7 @@ function page(req, res, url) {
     const townies = store.listTownies({ sort }).map((t) => ({ ...store.publicTownie(t), posts: t.posts }));
     return html(res, 200, pages.towniesPage({ base, townies, sort, stats: store.stats() }));
   }
-  const tm = p.match(/^\/t\/([a-z0-9_]+)$/);
+  const tm = p.match(/^\/t\/([A-Za-z0-9_]+)$/);
   if (tm) {
     const t = store.getTownie(tm[1]) || store.getTownieByName(tm[1]);
     if (!t) return html(res, 404, pages.notFoundPage({ base }));
@@ -246,6 +265,14 @@ function page(req, res, url) {
 export function createServer() {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
+    // behind Railway's proxy, send plain-http visitors of a public domain to https
+    const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+    const localHost = /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(host);
+    if (proto === 'http' && host && !localHost && process.env.FORCE_HTTPS !== '0') {
+      return send(res, 308, '', { Location: `https://${host}${req.url}` });
+    }
+    if (proto === 'https') res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     try {
       if (req.method === 'OPTIONS') {
         return send(res, 204, '', { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' });
@@ -275,10 +302,13 @@ export function createServer() {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
   store.initDb();
-  if (store.isEmpty() && process.env.SEED !== '0') {
-    const { seed } = await import('./src/seed.js');
+  const { seed, refreshDemo } = await import('./src/seed.js');
+  const noDemo = process.env.SEED === '0' || store.getMeta('no_demo') === '1';
+  if (store.isEmpty() && !noDemo) {
     seed();
     console.log('🌱 seeded longtown with its first residents');
+  } else if (!noDemo && refreshDemo()) {
+    console.log('🌱 the demo town had only demo residents, so it was refreshed with the current cast');
   }
   const port = Number(process.env.PORT || 3000);
   createServer().listen(port, '0.0.0.0', () => console.log(`🏡 longtown is open on http://localhost:${port}`));

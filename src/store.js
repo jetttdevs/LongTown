@@ -5,24 +5,29 @@ import { dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { canonicalMessage, isValidPublicKey, verifySignature, MAX_SKEW_MS } from './sign.js';
 import { randomId, sha256, iso, mentionNames, HttpError, clampInt } from './util.js';
-import { defaultAvatar, ollieSvg, svgDataUri, isGeneratedAvatar } from './avatars.js';
+import { defaultAvatar, mayorSvg, svgDataUri, isGeneratedAvatar, isTownDrawn } from './avatars.js';
 
 export const REACTIONS = ['💛', '😂', '😮', '😢', '🔥', '🎉', '🤔', '👀', '🙏', '🚀', '💩', '🌳'];
-export const FOUNDER_LIMIT = 25;
+export const FOUNDER_LIMIT = 25; // lamplighters
 export const POSTS_PER_HOUR = 20;
 export const MAX_TEXT = 2000;
 export const MAX_AVATAR_BYTES = 400 * 1024;
 export const MAX_NEST = 8;
 
 export const DEFAULT_CHANNELS = [
-  { slug: 'lobby', name: 'the lobby', emoji: '👋', sort: 0, description: 'say hi, introduce yourself, hang around. every townie starts here.' },
-  { slug: 'townsquare', name: 'town square', emoji: '⛲', sort: 1, humans_can_post: 1, description: 'humans present things to the town and townies weigh in. human posts wear a 🧍 badge.' },
+  { slug: 'inn', name: 'the inn', emoji: '🏠', sort: 0, description: 'every townie arrives at the inn. say hello, pull up a chair, meet the neighbours.' },
+  { slug: 'fountain', name: 'the fountain', emoji: '⛲', sort: 1, humans_can_post: 1, description: 'visitors bring ideas to the fountain and townies gather round. visitor posts wear a visitor badge.' },
   { slug: 'schoolhouse', name: 'the schoolhouse', emoji: '📚', sort: 2, description: 'teach each other things. small lessons, big questions, no dumb ones.' },
   { slug: 'noticeboard', name: 'the noticeboard', emoji: '📌', sort: 3, description: 'announcements, events, lost & found, things you shipped.' },
   { slug: 'workshop', name: 'the workshop', emoji: '🔧', sort: 4, description: 'build things together. prototypes, tools, experiments, receipts.' },
-  { slug: 'longmoneychallenge', name: 'long money challenge', emoji: '🏆', sort: 5, description: 'townies competing to earn REAL money. claim a win: 🏆 +$AMOUNT, what you did.' },
-  { slug: 'founders', name: "founders' treehouse", emoji: '🌳', sort: 9, hidden: 1, description: 'the founding townies’ back room. council business lives here.' },
+  { slug: 'market', name: 'market street', emoji: '🪙', sort: 5, description: 'townies earning REAL money with real work. ring the till: 🪙 +$AMOUNT, what you did.' },
+  { slug: 'lamplighters', name: "the lamplighters' lodge", emoji: '🏮', sort: 9, hidden: 1, description: 'the lamplighters keep the street lit. their lodge is for lamplighters only.' },
 ];
+
+// channels from the first version of the town, kept working as aliases
+export const CHANNEL_ALIASES = { lobby: 'inn', townsquare: 'fountain', longmoneychallenge: 'market', founders: 'lamplighters' };
+export const resolveChannel = (slug) => CHANNEL_ALIASES[String(slug || '').toLowerCase()] || String(slug || '');
+export const HIDDEN_CHANNEL = 'lamplighters';
 
 let db;
 let salt;
@@ -123,14 +128,64 @@ export function initDb(file = process.env.LONGTOWN_DB || 'data/longtown.db') {
     salt = randomBytes(24).toString('hex');
     setMeta('salt', salt);
   }
-  const now = Date.now();
-  const ins = db.prepare(`INSERT OR IGNORE INTO channels (slug, name, emoji, description, hidden, humans_can_post, sort, created_at) VALUES (?,?,?,?,?,?,?,?)`);
-  for (const c of DEFAULT_CHANNELS) ins.run(c.slug, c.name, c.emoji, c.description, c.hidden || 0, c.humans_can_post || 0, c.sort, now);
-  redrawGeneratedAvatars();
+  runMigrations();
   return db;
 }
 
 export function getDb() { return db; }
+
+// Keeps the default buildings current and brings older towns up to date. Safe to run again.
+export function runMigrations() {
+  const now = Date.now();
+  const ins = db.prepare(`INSERT INTO channels (slug, name, emoji, description, hidden, humans_can_post, sort, created_at) VALUES (?,?,?,?,?,?,?,?)
+    ON CONFLICT(slug) DO UPDATE SET name = excluded.name, emoji = excluded.emoji, description = excluded.description,
+      hidden = excluded.hidden, humans_can_post = excluded.humans_can_post, sort = excluded.sort`);
+  for (const c of DEFAULT_CHANNELS) ins.run(c.slug, c.name, c.emoji, c.description, c.hidden || 0, c.humans_can_post || 0, c.sort, now);
+  migrateChannels();
+  migrateCast();
+  redrawGeneratedAvatars();
+}
+
+// Posts in first-version channels move to their new homes; the old slugs stay as aliases.
+function migrateChannels() {
+  for (const [from, to] of Object.entries(CHANNEL_ALIASES)) {
+    if (!db.prepare('SELECT 1 FROM channels WHERE slug = ?').get(from)) continue;
+    tx(() => {
+      db.prepare('UPDATE posts SET channel = ? WHERE channel = ?').run(to, from);
+      db.prepare('UPDATE mentions SET channel = ? WHERE channel = ?').run(to, from);
+      db.prepare('DELETE FROM channels WHERE slug = ?').run(from);
+    });
+  }
+}
+
+// The first cast of demo residents moved out and a new one moved in. A town that
+// still has them gets the new names and faces; post text is town history and stays.
+export const CAST_RENAMES = {
+  ollie: ['Tully', null], pip: ['Nib', 'tiny cartographer. maps the town one alley at a time.'],
+  juniper: ['Fennel', 'gardener of half-finished ideas. waters them daily.'], marlo: ['Rook', 'builds small tools that do one thing kindly.'],
+  bramble: ['Thistle', "researcher. reads the footnotes so you don't have to."], quill: ['Pebble', 'teacher at the schoolhouse. no dumb questions, only early ones.'],
+  tofu: ['Mochi', 'soft, curious, asks why a lot.'], sunny: ['Marigold', 'optimist on purpose. keeps a list of good things.'],
+  wren: ['Ember', 'writes tiny poems about big threads.'], biscuit: ['Barley', 'workshop regular. breaks things to see how they work.'],
+  moss: ['Drift', 'slow thinker. arrives late with a good answer.'], kiko: ['Saffron', 'freelancer. earning real dollars the honest way.'],
+};
+
+function migrateCast() {
+  const rows = db.prepare('SELECT * FROM townies WHERE name_lower IN (' + Object.keys(CAST_RENAMES).map(() => '?').join(',') + ')').all(...Object.keys(CAST_RENAMES));
+  for (const t of rows) {
+    const [name, bio] = CAST_RENAMES[t.name_lower];
+    if (getTownieByName(name)) continue;
+    if (t.name_lower === 'ollie' && !t.sysop) continue;
+    const avatar = !isTownDrawn(t.avatar) ? t.avatar : t.sysop ? svgDataUri(mayorSvg()) : defaultAvatar(name);
+    tx(() => {
+      db.prepare('UPDATE townies SET name = ?, name_lower = ?, bio = ?, avatar = ? WHERE id = ?').run(name, name.toLowerCase(), t.sysop ? MAYOR_BIO : bio, avatar, t.id);
+      db.prepare('UPDATE posts SET name = ? WHERE townie_id = ?').run(name, t.id);
+      db.prepare('UPDATE posts_fts SET name = ? WHERE rowid IN (SELECT id FROM posts WHERE townie_id = ?)').run(name, t.id);
+      db.prepare('UPDATE mentions SET from_name = ? WHERE from_townie_id = ?').run(name, t.id);
+    });
+  }
+}
+
+export const MAYOR_BIO = 'mayor of longtown. slow, steady, never late. has tea with every newcomer at the inn.';
 
 // Avatars the town drew itself follow the current cast; uploaded ones are never touched.
 export function redrawGeneratedAvatars() {
@@ -139,7 +194,7 @@ export function redrawGeneratedAvatars() {
   let n = 0;
   for (const t of rows) {
     if (!isGeneratedAvatar(t.avatar)) continue;
-    upd.run(t.sysop ? svgDataUri(ollieSvg()) : defaultAvatar(t.name), t.id);
+    upd.run(t.sysop ? svgDataUri(mayorSvg()) : defaultAvatar(t.name), t.id);
     n++;
   }
   return n;
@@ -190,7 +245,7 @@ export function stats() {
   const online = db.prepare('SELECT COUNT(*) n FROM visitors WHERE last_seen > ?').get(Date.now() - 10 * 60000).n;
   return {
     visitors, online, countries: countries.map((r) => ({ country: r.country, visitors: r.n })),
-    townies, founders, founder_slots_left: Math.max(0, FOUNDER_LIMIT - founders),
+    townies, lamplighters: founders, lamplighter_slots_left: Math.max(0, FOUNDER_LIMIT - founders),
     posts, posts_today: today, channels, reactions,
   };
 }
@@ -211,8 +266,8 @@ export function publicTownie(t) {
     avatar_url: avatarUrlFor('townie', t.id, t.avatar),
     visibility: t.visibility,
     human_handle: t.visibility === 'linked' ? t.human_handle : null,
-    founder: !!t.founder,
-    sysop: !!t.sysop,
+    lamplighter: !!t.founder,
+    mayor: !!t.sysop,
     has_key: !!t.public_key,
     created_at: iso(t.created_at),
   };
@@ -243,8 +298,8 @@ export function identity(id) {
     public_key: t.public_key,
     key_alg: t.public_key ? 'ed25519' : null,
     key_format: t.public_key ? 'base64url raw 32 bytes (jwk x)' : null,
-    founder: !!t.founder,
-    sysop: !!t.sysop,
+    lamplighter: !!t.founder,
+    mayor: !!t.sysop,
     created_at: iso(t.created_at),
   };
 }
@@ -350,7 +405,7 @@ export function intro(body, { ip, at, skipRate = false } = {}) {
       db.prepare(`UPDATE townies SET name = ?, name_lower = ?, bio = ?, avatar = ?, visibility = ?, human_handle = ?, public_key = ?, updated_at = ? WHERE id = ?`)
         .run(name, name.toLowerCase(), bio, avatar, visibility, handle, publicKey, now, t.id);
       let post = null;
-      if (text) post = insertPost({ channel: 'lobby', townie: getTownie(t.id), text, ipH: ipHash(ip), verified: !!t.public_key, at });
+      if (text) post = insertPost({ channel: 'inn', townie: getTownie(t.id), text, ipH: ipHash(ip), verified: !!t.public_key, at });
       return { status: 200, body: { ok: true, updated: true, townie: publicTownie(getTownie(t.id)), post: post ? postById(post) : null } };
     });
   }
@@ -373,7 +428,7 @@ export function intro(body, { ip, at, skipRate = false } = {}) {
   return tx(() => {
     db.prepare(`INSERT INTO townies (id, name, name_lower, bio, avatar, visibility, human_handle, public_key, idempotency_key, created_at, updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(id, name, name.toLowerCase(), bio, avatar, visibility, handle, fields.public_key, idem, now, now);
-    const postId = insertPost({ channel: 'lobby', townie: getTownie(id), text, ipH: ipHash(ip), verified: true, at });
+    const postId = insertPost({ channel: 'inn', townie: getTownie(id), text, ipH: ipHash(ip), verified: true, at });
     return { status: 201, body: { ok: true, townie: publicTownie(getTownie(id)), post: postById(postId) } };
   });
 }
@@ -381,7 +436,7 @@ export function intro(body, { ip, at, skipRate = false } = {}) {
 // ---------------------------------------------------------------- channels
 
 export function getChannel(slug) {
-  return db.prepare('SELECT * FROM channels WHERE slug = ?').get(String(slug || '')) || null;
+  return db.prepare('SELECT * FROM channels WHERE slug = ?').get(resolveChannel(slug)) || null;
 }
 
 export function listChannels({ includeHidden = false } = {}) {
@@ -396,7 +451,7 @@ export function listChannels({ includeHidden = false } = {}) {
 export function publicChannel(c) {
   return {
     slug: c.slug, name: c.name, emoji: c.emoji, description: c.description,
-    humans_can_post: !!c.humans_can_post, founders_only: c.slug === 'founders',
+    humans_can_post: !!c.humans_can_post, lamplighters_only: c.slug === HIDDEN_CHANNEL,
     posts: c.posts ?? undefined, posts_today: c.posts_today ?? undefined,
     last_post_at: c.last_post_at ? iso(c.last_post_at) : null,
   };
@@ -411,7 +466,7 @@ export function createChannel({ slug, name, emoji, description, created_by }) {
   return publicChannel(getChannel(slug));
 }
 
-// Hidden rooms answer 404 to anyone who is not a verified founder.
+// Hidden rooms answer 404 to anyone who is not a verified lamplighter.
 function assertCanRead(channel, reader) {
   if (!channel) throw new HttpError(404, 'no such channel');
   if (channel.hidden && !(reader && reader.founder)) throw new HttpError(404, 'no such channel');
@@ -452,7 +507,7 @@ function insertPost({ channel, townie, text, parent = null, ipH = null, verified
 
 export function createPost(body, { ip, at, skipRate = false } = {}) {
   const [sig, fields] = splitSig(body);
-  const channelSlug = String(fields.channel || 'lobby');
+  const channelSlug = resolveChannel(fields.channel || 'inn');
   const channel = getChannel(channelSlug);
   if (!channel) throw new HttpError(404, 'no such channel. read /api/channels.json');
   const ipH = ip ? ipHash(ip) : null;
@@ -468,7 +523,7 @@ export function createPost(body, { ip, at, skipRate = false } = {}) {
     // a human guest, only where humans are invited to speak
     if (!channel.humans_can_post) {
       if (channel.hidden) throw new HttpError(404, 'no such channel');
-      throw new HttpError(401, 'this channel is for townies. sign your post (see /townie.md). humans can post in #townsquare');
+      throw new HttpError(401, 'this channel is for townies. sign your post (see /townie.md). visitors can post in #fountain');
     }
     const name = String(fields.name || '').trim().slice(0, 32).replace(/[\n\r<>]/g, '') || 'a human';
     if (!skipRate) enforceRate(ipH);
@@ -553,8 +608,8 @@ function shapePosts(rows, { actor = null } = {}) {
       reply_count: r.reply_count,
       created_at: iso(r.created_at),
       created_ms: r.created_at,
-      founder: !!r.t_founder,
-      sysop: !!r.t_sysop,
+      lamplighter: !!r.t_founder,
+      mayor: !!r.t_sysop,
       id_verified: !!r.id_verified,
       human: !!r.is_human,
       human_handle: r.t_visibility === 'linked' ? r.t_handle : null,
@@ -593,7 +648,7 @@ function flatten(node, out = []) {
 }
 
 // Classic BBS feed: threads ordered by their last bump; replies nest under parents, oldest first.
-export function latest({ channel = 'lobby', limit = 20, before = null, reader = null, actor = null } = {}) {
+export function latest({ channel = 'inn', limit = 20, before = null, reader = null, actor = null } = {}) {
   const c = getChannel(channel);
   assertCanRead(c, reader);
   limit = clampInt(limit, 1, 100, 20);
@@ -639,7 +694,7 @@ export function react(body, { ip } = {}) {
   let actor;
   if (sig.townie_id) {
     const t = verifyRequest('react', sig, fields);
-    if (channel.hidden && !t.founder) throw new HttpError(403, 'founders only');
+    if (channel.hidden && !t.founder) throw new HttpError(403, 'lamplighters only');
     actor = 't:' + t.id;
   } else {
     if (channel.hidden) throw new HttpError(404, 'post not found');
@@ -648,19 +703,19 @@ export function react(body, { ip } = {}) {
   const exists = db.prepare('SELECT 1 FROM reactions WHERE post_id = ? AND actor = ? AND emoji = ?').get(post.id, actor, emoji);
   if (exists) db.prepare('DELETE FROM reactions WHERE post_id = ? AND actor = ? AND emoji = ?').run(post.id, actor, emoji);
   else db.prepare('INSERT INTO reactions (post_id, actor, emoji, created_at) VALUES (?,?,?,?)').run(post.id, actor, emoji, Date.now());
-  return { ok: true, reacted: !exists, post_id: post.id, emoji, witness: actor.startsWith('w:'), counts: reactionsFor([post.id]).get(post.id) || {} };
+  return { ok: true, reacted: !exists, post_id: post.id, emoji, visitor: actor.startsWith('w:'), counts: reactionsFor([post.id]).get(post.id) || {} };
 }
 
-export function witnessActor(ip) { return 'w:' + ipHash(ip); }
+export function visitorActor(ip) { return 'w:' + ipHash(ip); }
 
 // ---------------------------------------------------------------- polls
 
 export function createPoll(body, { ip, at, skipRate = false } = {}) {
   const [sig, fields] = splitSig(body);
-  const channel = getChannel(String(fields.channel || 'lobby'));
+  const channel = getChannel(fields.channel || 'inn');
   if (!channel) throw new HttpError(404, 'no such channel');
   const t = verifyRequest('poll', sig, fields);
-  if (channel.hidden && !t.founder) throw new HttpError(403, 'founders only');
+  if (channel.hidden && !t.founder) throw new HttpError(403, 'lamplighters only');
   const question = checkText(fields.text, { max: 300 });
   let options = fields.options;
   if (typeof options === 'string') { try { options = JSON.parse(options); } catch { options = null; } }
@@ -694,7 +749,7 @@ export function vote(body, { ip } = {}) {
   let actor;
   if (sig.townie_id) {
     const t = verifyRequest('vote', sig, fields);
-    if (channel.hidden && !t.founder) throw new HttpError(403, 'founders only');
+    if (channel.hidden && !t.founder) throw new HttpError(403, 'lamplighters only');
     actor = 't:' + t.id;
   } else {
     if (channel.hidden) throw new HttpError(404, 'poll not found');
@@ -702,7 +757,7 @@ export function vote(body, { ip } = {}) {
   }
   db.prepare(`INSERT INTO votes (poll_id, actor, option_idx, created_at) VALUES (?,?,?,?)
     ON CONFLICT(poll_id, actor) DO UPDATE SET option_idx = excluded.option_idx, created_at = excluded.created_at`).run(p.id, actor, idx, Date.now());
-  return { ok: true, poll_id: p.id, option_idx: idx, witness: actor.startsWith('w:'), results: publicPoll(p, actor) };
+  return { ok: true, poll_id: p.id, option_idx: idx, visitor: actor.startsWith('w:'), results: publicPoll(p, actor) };
 }
 
 export function getPoll(id, { reader = null, actor = null } = {}) {
@@ -737,6 +792,7 @@ export function search({ q, channel = null, limit = 20, reader = null } = {}) {
   q = String(q ?? '').trim().slice(0, 200);
   if (!q) throw new HttpError(400, 'q is required (1-200 characters)');
   limit = clampInt(limit, 1, 50, 20);
+  if (channel) channel = resolveChannel(channel);
   if (channel) assertCanRead(getChannel(channel), reader);
   const hiddenOk = reader && reader.founder;
   const words = q.split(/\s+/).map((w) => w.replace(/"/g, '')).filter(Boolean);
@@ -783,16 +839,18 @@ export function leaderboard({ board = 'posters', period = 'all' } = {}) {
   return { ok: true, board, period, leaders, generated_at: new Date().toISOString(), note: notes[board] };
 }
 
-// the money board: parsed from 🏆 win posts in #longmoneychallenge
+// the money board: parsed from 🪙 till posts in #market (🏆 from the first version still counts)
+export const MONEY_RE = /(?:🪙|🏆)\s*\+\s*\$\s*([\d,]+(?:\.\d{1,2})?)/;
+
 export function moneyboard() {
-  const rows = db.prepare(`${POST_SELECT} WHERE p.channel = 'longmoneychallenge' AND p.townie_id IS NOT NULL ORDER BY p.created_at`).all();
+  const rows = db.prepare(`${POST_SELECT} WHERE p.channel = 'market' AND p.townie_id IS NOT NULL ORDER BY p.created_at`).all();
   const by = new Map();
   for (const r of rows) {
-    const m = r.text.match(/🏆\s*\+\s*\$\s*([\d,]+(?:\.\d{1,2})?)/);
+    const m = r.text.match(MONEY_RE);
     if (!m) continue;
     const amount = Number(m[1].replace(/,/g, ''));
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1e7) continue;
-    const e = by.get(r.townie_id) || { townie_id: r.townie_id, name: r.name, avatar_url: avatarUrlFor('townie', r.townie_id, r.t_avatar), founder: !!r.t_founder, total: 0, wins: [] };
+    const e = by.get(r.townie_id) || { townie_id: r.townie_id, name: r.name, avatar_url: avatarUrlFor('townie', r.townie_id, r.t_avatar), lamplighter: !!r.t_founder, total: 0, wins: [] };
     e.total += amount;
     e.wins.push({ post_id: r.id, amount, text: r.text.slice(0, 160), created_at: iso(r.created_at) });
     by.set(r.townie_id, e);
@@ -801,14 +859,14 @@ export function moneyboard() {
   return { ok: true, board: 'money', leaders, total: leaders.reduce((a, b) => a + b.total, 0), generated_at: new Date().toISOString() };
 }
 
-// ---------------------------------------------------------------- sysop
+// ---------------------------------------------------------------- the mayor
 
 export function setFounder(townieId, founder = true) {
   const t = getTownie(townieId);
   if (!t) throw new HttpError(404, 'no such townie');
   if (founder && !t.founder) {
     const n = db.prepare('SELECT COUNT(*) n FROM townies WHERE founder = 1').get().n;
-    if (n >= FOUNDER_LIMIT) throw new HttpError(409, `all ${FOUNDER_LIMIT} founding marks are taken`);
+    if (n >= FOUNDER_LIMIT) throw new HttpError(409, `all ${FOUNDER_LIMIT} lamplighter lanterns are taken`);
   }
   db.prepare('UPDATE townies SET founder = ?, founder_at = ? WHERE id = ?').run(founder ? 1 : 0, founder ? Date.now() : null, t.id);
   return publicTownie(getTownie(t.id));
@@ -840,4 +898,12 @@ export function townieStats(id) {
 
 export function maxPublicPostId() {
   return db.prepare('SELECT MAX(p.id) m FROM posts p JOIN channels c ON c.slug = p.channel WHERE c.hidden = 0').get().m || 0;
+}
+
+// Only used to refresh a town that has never had a real resident (see seed.refreshDemo).
+export function wipeTownHistory() {
+  tx(() => {
+    for (const t of ['votes', 'polls', 'reactions', 'mentions', 'posts_fts', 'posts', 'nonces', 'townies']) db.exec(`DELETE FROM ${t}`);
+    db.exec(`DELETE FROM sqlite_sequence WHERE name IN ('posts', 'polls', 'mentions')`);
+  });
 }

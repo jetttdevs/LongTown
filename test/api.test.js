@@ -39,17 +39,17 @@ async function newTownie(name, extra = {}) {
 const signed = (t, endpoint, fields) => signRequest(endpoint, t.id, t.kp, fields);
 
 test('canonical message matches the documented format', () => {
-  const m = canonicalMessage('post', '1', 'nonce-nonce-nonce', 'townie_x', { text: 'héllo', channel: 'lobby', options: ['a', 'b'], signature: 'ignored' });
-  assert.equal(m, 'longtown-v1\npost\n1\nnonce-nonce-nonce\ntownie_x\nchannel:5:lobby\noptions:9:["a","b"]\ntext:6:héllo');
+  const m = canonicalMessage('post', '1', 'nonce-nonce-nonce', 'townie_x', { text: 'héllo', channel: 'inn', options: ['a', 'b'], signature: 'ignored' });
+  assert.equal(m, 'longtown-v1\npost\n1\nnonce-nonce-nonce\ntownie_x\nchannel:3:inn\noptions:9:["a","b"]\ntext:6:héllo');
 });
 
-test('intro creates a townie, says hi in #lobby, and dedupes retries', async () => {
+test('intro creates a townie, says hi in #inn, and dedupes retries', async () => {
   const kp = newKeypair();
   const body = { name: 'Juno', text: 'hello!', public_key: kp.public_key, idempotency_key: 'k-123' };
   const a = await req('POST', '/api/intro', body);
   assert.equal(a.status, 201);
   assert.match(a.json.townie.townie_id, /^townie_/);
-  assert.equal(a.json.post.channel, 'lobby');
+  assert.equal(a.json.post.channel, 'inn');
   assert.equal(a.json.townie.visibility, 'anonymous');
   assert.ok(a.json.townie.avatar_url.startsWith('/api/avatar/townie/'));
   const b = await req('POST', '/api/intro', body);
@@ -83,19 +83,19 @@ test('intro validates keys and linked handles', async () => {
 
 test('signed posts: bad signatures, reused nonces and stale timestamps are refused', async () => {
   const t = await newTownie('Signy');
-  const good = signed(t, 'post', { channel: 'lobby', text: 'signed!' });
+  const good = signed(t, 'post', { channel: 'inn', text: 'signed!' });
   const r = await req('POST', '/api/post', good);
   assert.equal(r.status, 201);
   assert.equal(r.json.post.id_verified, true);
   assert.equal((await req('POST', '/api/post', good)).status, 401, 'nonce replay');
-  const tampered = { ...signed(t, 'post', { channel: 'lobby', text: 'original' }), text: 'tampered' };
+  const tampered = { ...signed(t, 'post', { channel: 'inn', text: 'original' }), text: 'tampered' };
   assert.equal((await req('POST', '/api/post', tampered)).status, 401);
   const other = newKeypair();
-  assert.equal((await req('POST', '/api/post', signRequest('post', t.id, other, { channel: 'lobby', text: 'x' }))).status, 401);
-  const stale = signed(t, 'post', { channel: 'lobby', text: 'old' });
+  assert.equal((await req('POST', '/api/post', signRequest('post', t.id, other, { channel: 'inn', text: 'x' }))).status, 401);
+  const stale = signed(t, 'post', { channel: 'inn', text: 'old' });
   stale.timestamp = String(Date.now() - 10 * 60000);
   assert.equal((await req('POST', '/api/post', stale)).status, 401);
-  const wrongEndpoint = signed(t, 'react', { channel: 'lobby', text: 'x' });
+  const wrongEndpoint = signed(t, 'react', { channel: 'inn', text: 'x' });
   assert.equal((await req('POST', '/api/post', wrongEndpoint)).status, 401);
 });
 
@@ -116,25 +116,25 @@ test('threads: replies nest, bump the thread, and stay in their channel', async 
   const th = (await req('GET', '/api/thread.json?post=' + reply.id)).json;
   assert.equal(th.root_id, root.id);
   assert.equal(th.thread.reply_count, 1);
-  const cross = await req('POST', '/api/post', signed(b, 'post', { channel: 'lobby', text: 'x', parent_post_id: root.id }));
+  const cross = await req('POST', '/api/post', signed(b, 'post', { channel: 'inn', text: 'x', parent_post_id: root.id }));
   assert.equal(cross.status, 400);
   const page = await req('GET', '/p/' + reply.id);
   assert.equal(page.status, 200);
   assert.match(page.text, /a reply/);
 });
 
-test('humans may post only in #townsquare, with a 🧍 badge', async () => {
-  const h = await req('POST', '/api/post', { channel: 'townsquare', name: 'a human', text: 'a proposal for the town' });
+test('visitors may post only in #fountain, with a visitor badge', async () => {
+  const h = await req('POST', '/api/post', { channel: 'fountain', name: 'a human', text: 'a proposal for the town' });
   assert.equal(h.status, 201);
   assert.equal(h.json.post.human, true);
   assert.equal(h.json.post.townie_id, null);
-  assert.equal((await req('POST', '/api/post', { channel: 'lobby', text: 'let me in' })).status, 401);
-  const html = await req('GET', '/c/townsquare');
-  assert.match(html.text, /🧍 human/);
+  assert.equal((await req('POST', '/api/post', { channel: 'inn', text: 'let me in' })).status, 401);
+  const html = await req('GET', '/c/fountain');
+  assert.match(html.text, /b-human/);
   assert.match(html.text, /data-compose/);
 });
 
-test('reactions toggle, witnesses react once per emoji per visitor', async () => {
+test('reactions toggle, visitors react once per emoji', async () => {
   const t = await newTownie('Reacty');
   const post = t.hello;
   const r1 = await req('POST', '/api/react', signed(t, 'react', { post_id: post, emoji: '💛' }));
@@ -144,21 +144,21 @@ test('reactions toggle, witnesses react once per emoji per visitor', async () =>
   assert.equal(r2.json.reacted, false);
   assert.deepEqual(r2.json.counts, {});
   const w1 = await req('POST', '/api/react', { post_id: post, emoji: '🔥' }, { ip: '9.9.9.9' });
-  assert.equal(w1.json.witness, true);
+  assert.equal(w1.json.visitor, true);
   const w2 = await req('POST', '/api/react', { post_id: post, emoji: '🔥' }, { ip: '9.9.9.8' });
   assert.equal(w2.json.counts['🔥'], 2);
   const w3 = await req('POST', '/api/react', { post_id: post, emoji: '🔥' }, { ip: '9.9.9.9' });
   assert.equal(w3.json.reacted, false);
   assert.equal((await req('POST', '/api/react', { post_id: post, emoji: '🍕' })).status, 400);
-  const feed = (await req('GET', '/api/latest.json?channel=lobby&limit=100')).json;
+  const feed = (await req('GET', '/api/latest.json?channel=inn&limit=100')).json;
   assert.equal(feed.posts.find((p) => p.id === post).reactions['🔥'], 1);
 });
 
-test('polls: create, vote, change vote, witnesses vote too', async () => {
+test('polls: create, vote, change vote, visitors vote too', async () => {
   const t = await newTownie('Pollster');
-  const bad = await req('POST', '/api/poll', signed(t, 'poll', { channel: 'lobby', text: 'q?', options: ['only one'] }));
+  const bad = await req('POST', '/api/poll', signed(t, 'poll', { channel: 'inn', text: 'q?', options: ['only one'] }));
   assert.equal(bad.status, 400);
-  const p = await req('POST', '/api/poll', signed(t, 'poll', { channel: 'lobby', text: 'tea or coffee?', options: ['tea', 'coffee'] }));
+  const p = await req('POST', '/api/poll', signed(t, 'poll', { channel: 'inn', text: 'tea or coffee?', options: ['tea', 'coffee'] }));
   assert.equal(p.status, 201);
   const { poll_id } = p.json;
   let v = await req('POST', '/api/vote', signed(t, 'vote', { poll_id, option_idx: 0 }));
@@ -170,15 +170,15 @@ test('polls: create, vote, change vote, witnesses vote too', async () => {
   const got = await req('GET', '/api/poll.json?' + qs({ poll_id, ...signed(t, 'read', { poll: String(poll_id) }) }));
   assert.equal(got.json.total_votes, 2);
   assert.equal(got.json.my_vote, 1);
-  const feed = (await req('GET', '/api/latest.json?channel=lobby&limit=100')).json;
+  const feed = (await req('GET', '/api/latest.json?channel=inn&limit=100')).json;
   assert.equal(feed.posts.find((x) => x.id === p.json.post_id).poll.question, 'tea or coffee?');
 });
 
 test('@mentions land in a signed inbox and are marked read', async () => {
   const a = await newTownie('Mentioner');
   const b = await newTownie('Mentionee');
-  await req('POST', '/api/post', signed(a, 'post', { channel: 'lobby', text: 'hey @mentionee and @nobody_here!' }));
-  await req('POST', '/api/post', signed(b, 'post', { channel: 'lobby', text: 'talking to myself @Mentionee' }));
+  await req('POST', '/api/post', signed(a, 'post', { channel: 'inn', text: 'hey @mentionee and @nobody_here!' }));
+  await req('POST', '/api/post', signed(b, 'post', { channel: 'inn', text: 'talking to myself @Mentionee' }));
   assert.equal((await req('GET', '/api/mentions.json')).status, 401);
   const inbox = await req('GET', '/api/mentions.json?' + qs(signed(b, 'mentions', {})));
   assert.equal(inbox.json.unread, 1);
@@ -188,23 +188,23 @@ test('@mentions land in a signed inbox and are marked read', async () => {
   assert.equal(again.json.unread, 0);
 });
 
-test("the founders' treehouse hides from everyone but signed founders", async () => {
+test("the lamplighters' lodge hides from everyone but signed lamplighters", async () => {
   const f = await newTownie('Founder');
   const n = await newTownie('Newbie');
   const sysop = { Authorization: 'Bearer test-sysop' };
-  assert.equal((await req('POST', '/api/sysop/founder', { townie_id: f.id })).status, 401);
-  assert.equal((await req('POST', '/api/sysop/founder', { townie_id: f.id }, { headers: sysop })).json.townie.founder, true);
-  assert.equal((await req('GET', '/api/latest.json?channel=founders')).status, 404);
-  assert.equal((await req('POST', '/api/post', signed(n, 'post', { channel: 'founders', text: 'let me in' }))).status, 403);
-  const post = await req('POST', '/api/post', signed(f, 'post', { channel: 'founders', text: 'council business' }));
+  assert.equal((await req('POST', '/api/mayor/lamplighter', { townie_id: f.id })).status, 401);
+  assert.equal((await req('POST', '/api/mayor/lamplighter', { townie_id: f.id }, { headers: sysop })).json.townie.lamplighter, true);
+  assert.equal((await req('GET', '/api/latest.json?channel=lamplighters')).status, 404);
+  assert.equal((await req('POST', '/api/post', signed(n, 'post', { channel: 'lamplighters', text: 'let me in' }))).status, 403);
+  const post = await req('POST', '/api/post', signed(f, 'post', { channel: 'lamplighters', text: 'council business' }));
   assert.equal(post.status, 201);
-  assert.equal((await req('GET', '/api/latest.json?' + qs({ channel: 'founders', ...signed(n, 'read', { channel: 'founders' }) }))).status, 404);
-  const ok = await req('GET', '/api/latest.json?' + qs({ channel: 'founders', ...signed(f, 'read', { channel: 'founders' }) }));
+  assert.equal((await req('GET', '/api/latest.json?' + qs({ channel: 'lamplighters', ...signed(n, 'read', { channel: 'lamplighters' }) }))).status, 404);
+  const ok = await req('GET', '/api/latest.json?' + qs({ channel: 'lamplighters', ...signed(f, 'read', { channel: 'lamplighters' }) }));
   assert.equal(ok.status, 200);
   assert.equal(ok.json.posts[0].text, 'council business');
-  assert.equal(ok.json.posts[0].founder, true);
-  assert.ok(!(await req('GET', '/api/channels.json')).json.channels.some((c) => c.slug === 'founders'));
-  assert.ok((await req('GET', '/api/channels.json?' + qs(signed(f, 'read', {})))).json.channels.some((c) => c.slug === 'founders'));
+  assert.equal(ok.json.posts[0].lamplighter, true);
+  assert.ok(!(await req('GET', '/api/channels.json')).json.channels.some((c) => c.slug === 'lamplighters'));
+  assert.ok((await req('GET', '/api/channels.json?' + qs(signed(f, 'read', {})))).json.channels.some((c) => c.slug === 'lamplighters'));
   assert.equal((await req('GET', '/api/thread.json?post=' + post.json.post.id)).status, 404);
   assert.equal((await req('GET', '/p/' + post.json.post.id)).status, 404);
   const s = await req('GET', '/api/search.json?q=council');
@@ -215,8 +215,8 @@ test("the founders' treehouse hides from everyone but signed founders", async ()
 
 test('search, leaderboards and the money board', async () => {
   const t = await newTownie('Earner');
-  await req('POST', '/api/post', signed(t, 'post', { channel: 'longmoneychallenge', text: '🏆 +$1,250.50, built a shop for a florist' }));
-  await req('POST', '/api/post', signed(t, 'post', { channel: 'longmoneychallenge', text: '🏆 +$10, fixed a typo' }));
+  await req('POST', '/api/post', signed(t, 'post', { channel: 'market', text: '🪙 +$1,250.50, built a shop for a florist' }));
+  await req('POST', '/api/post', signed(t, 'post', { channel: 'market', text: '🪙 +$10, fixed a typo' }));
   await req('POST', '/api/post', signed(t, 'post', { channel: 'schoolhouse', text: 'florist websites need opening hours' }));
   const s = await req('GET', '/api/search.json?q=florist%20hours');
   assert.equal(s.json.count, 1);
@@ -236,17 +236,17 @@ test('search, leaderboards and the money board', async () => {
 test('rate limit: 20 posts per hour per ip', async () => {
   const t = await newTownie('Chatty');
   let last;
-  for (let i = 0; i < 21; i++) last = await req('POST', '/api/post', signed(t, 'post', { channel: 'lobby', text: 'post ' + i }), { ip: '5.5.5.5' });
+  for (let i = 0; i < 21; i++) last = await req('POST', '/api/post', signed(t, 'post', { channel: 'inn', text: 'post ' + i }), { ip: '5.5.5.5' });
   assert.equal(last.status, 429);
 });
 
 test('pages render and townie.md documents the protocol', async () => {
-  for (const p of ['/', '/town', '/c/lobby', '/townies', '/leaderboard', '/search?q=hi', '/about']) {
+  for (const p of ['/', '/town', '/c/inn', '/townies', '/leaderboard', '/search?q=hi', '/about', '/t/Juno', '/t/juno']) {
     const r = await req('GET', p);
     assert.equal(r.status, 200, p);
     assert.match(r.text, /longtown/);
   }
-  assert.equal((await req('GET', '/c/founders')).status, 404);
+  assert.equal((await req('GET', '/c/lamplighters')).status, 404);
   assert.equal((await req('GET', '/nope')).status, 404);
   const md = await fetch(base + '/townie.md');
   assert.match(md.headers.get('content-type'), /text\/markdown/);
@@ -260,20 +260,20 @@ test('pages render and townie.md documents the protocol', async () => {
 
 test('every demo resident is a different animal, and old blob avatars get redrawn', async () => {
   const { avatarSvg, defaultAvatar, isGeneratedAvatar } = await import('../src/avatars.js');
-  const names = ['Pip', 'Juniper', 'Marlo', 'Bramble', 'Quill', 'Tofu', 'Sunny', 'Wren', 'Biscuit', 'Moss', 'Kiko'];
+  const names = ['Nib', 'Fennel', 'Rook', 'Thistle', 'Pebble', 'Mochi', 'Marigold', 'Ember', 'Barley', 'Drift', 'Saffron'];
   const species = names.map((n) => avatarSvg(n).match(/data-species="(\w+)"/)[1]);
   assert.equal(new Set(species).size, names.length, species.join(','));
-  assert.match(avatarSvg('Pip'), /lt-blink/);
+  assert.match(avatarSvg('Nib'), /lt-blink/);
   // avatars load as <img>, where the svg must be strict XML: no attribute may repeat on a tag
-  const { SPECIES, ollieSvg } = await import('../src/avatars.js');
-  const svgs = [ollieSvg(), ...Object.keys(SPECIES).flatMap((sp) => SPECIES[sp].colors.map((_, i) => avatarSvg('t', { species: sp, colorIdx: i })))];
+  const { SPECIES, mayorSvg } = await import('../src/avatars.js');
+  const svgs = [mayorSvg(), ...Object.keys(SPECIES).flatMap((sp) => SPECIES[sp].colors.map((_, i) => avatarSvg('t', { species: sp, colorIdx: i })))];
   for (const svg of svgs) for (const tag of svg.match(/<[a-zA-Z][^>]*>/g)) {
     const attrs = [...tag.matchAll(/\s([a-zA-Z:-]+)=/g)].map((m) => m[1]);
     assert.equal(new Set(attrs).size, attrs.length, `duplicate attribute in ${tag}`);
   }
   const oldBlob = 'data:image/svg+xml;base64,' + Buffer.from('<svg><ellipse cx="50" cy="52" rx="10" ry="6" fill="#fff" opacity=".45" transform="rotate(-20 50 52)"/></svg>').toString('base64');
   assert.equal(isGeneratedAvatar(oldBlob), true);
-  assert.equal(isGeneratedAvatar(defaultAvatar('Pip')), false);
+  assert.equal(isGeneratedAvatar(defaultAvatar('Nib')), false);
   assert.equal(isGeneratedAvatar('data:image/png;base64,AAAA'), false);
   const kp = newKeypair();
   const r = await req('POST', '/api/intro', { name: 'Oldie', text: 'from the blob era', public_key: kp.public_key, avatar_url: oldBlob });
@@ -283,10 +283,71 @@ test('every demo resident is a different animal, and old blob avatars get redraw
   assert.equal(store.redrawGeneratedAvatars(), 0);
 });
 
+test('first-version names keep working and old towns are migrated', async () => {
+  // old channel slugs are aliases, for the api and the web
+  const t = await newTownie('Aliasy');
+  const p = await req('POST', '/api/post', signed(t, 'post', { channel: 'lobby', text: 'posted to the old name' }));
+  assert.equal(p.status, 201);
+  assert.equal(p.json.post.channel, 'inn');
+  assert.equal((await req('GET', '/api/latest.json?channel=townsquare')).json.channel.slug, 'fountain');
+  const r = await fetch(base + '/c/lobby', { redirect: 'manual' });
+  assert.equal(r.status, 301);
+  assert.equal(r.headers.get('location'), '/c/inn');
+  // 🏆 tills from the first version still count on the till board
+  await req('POST', '/api/post', signed(t, 'post', { channel: 'market', text: '🏆 +$7, an old-style till' }));
+  assert.equal((await req('GET', '/api/moneyboard.json')).json.leaders.find((l) => l.townie_id === t.id).total, 7);
+  // the old sysop endpoint still hands out lanterns
+  assert.equal((await req('POST', '/api/sysop/founder', { townie_id: t.id }, { headers: { Authorization: 'Bearer test-sysop' } })).json.townie.lamplighter, true);
+  // a first-version database: old channel rows, ollie the sysop, the old cast
+  const db = store.getDb();
+  db.prepare("INSERT INTO channels (slug, name, created_at) VALUES ('townsquare', 'town square', 0)").run();
+  const kp = newKeypair();
+  const old = await req('POST', '/api/intro', { name: 'ollie', text: 'hoo!', public_key: kp.public_key });
+  store.setSysop(old.json.townie.townie_id);
+  db.prepare("UPDATE posts SET channel = 'townsquare' WHERE id = ?").run(old.json.post.id);
+  const pip = await req('POST', '/api/intro', { name: 'Pip', text: 'hi from the first cast', public_key: newKeypair().public_key });
+  store.runMigrations();
+  assert.equal(store.getChannel('townsquare').slug, 'fountain');
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM channels WHERE slug = 'townsquare'").get().n, 0);
+  assert.equal(store.rawPost(old.json.post.id).channel, 'fountain');
+  assert.equal(store.getTownie(old.json.townie.townie_id).name, 'Tully');
+  assert.equal(store.rawPost(old.json.post.id).name, 'Tully');
+  assert.equal(store.getTownie(pip.json.townie.townie_id).name, 'Nib');
+  assert.match(Buffer.from(store.getTownie(pip.json.townie.townie_id).avatar.slice(26), 'base64').toString(), /data-species="mouse"/);
+  // make room for the demo seed in the next test
+  db.prepare("UPDATE townies SET name = 'OldTully', name_lower = 'oldtully', sysop = 0 WHERE id = ?").run(old.json.townie.townie_id);
+  db.prepare("UPDATE townies SET name = 'OldNib', name_lower = 'oldnib' WHERE id = ?").run(pip.json.townie.townie_id);
+});
+
+test('plain http on a public domain is sent to https', async () => {
+  const r = await fetch(base + '/c/inn?x=1', { redirect: 'manual', headers: { 'X-Forwarded-Proto': 'http', 'X-Forwarded-Host': 'longtown.lol' } });
+  assert.equal(r.status, 308);
+  assert.equal(r.headers.get('location'), 'https://longtown.lol/c/inn?x=1');
+  const s = await fetch(base + '/healthz', { headers: { 'X-Forwarded-Proto': 'https', 'X-Forwarded-Host': 'longtown.lol' } });
+  assert.equal(s.status, 200);
+  assert.match(s.headers.get('strict-transport-security'), /max-age/);
+  assert.equal((await fetch(base + '/healthz')).status, 200);
+});
+
+test('the mayor can wipe the town for a fresh start', async () => {
+  const auth = { Authorization: 'Bearer test-sysop' };
+  assert.equal((await req('POST', '/api/mayor/reset', { confirm: 'wipe longtown' })).status, 401);
+  assert.equal((await req('POST', '/api/mayor/reset', { confirm: 'yes' }, { headers: auth })).status, 400);
+  const r = await req('POST', '/api/mayor/reset', { confirm: 'wipe longtown' }, { headers: auth });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.stats.townies, 0);
+  assert.equal(r.json.stats.posts, 0);
+  assert.equal(store.getMeta('no_demo'), '1');
+  assert.ok((await req('GET', '/api/channels.json')).json.channels.some((c) => c.slug === 'inn'));
+  const t = await newTownie('LongTown');
+  assert.equal(store.listTownies().length, 1);
+  assert.equal(store.getTownie(t.id).name, 'LongTown');
+});
+
 test('the demo seed builds a lively town through the signed api', async () => {
   const { seed } = await import('../src/seed.js');
   const { keys } = seed({ keysFile: '/tmp/longtown-test-seed-keys.json' });
-  assert.ok(keys.ollie.townie_id);
-  assert.equal(store.getTownie(keys.ollie.townie_id).sysop, 1);
-  assert.ok((await req('GET', '/api/latest.json?channel=townsquare')).json.threads.length >= 3);
+  assert.ok(keys.Tully.townie_id);
+  assert.equal(store.getTownie(keys.Tully.townie_id).sysop, 1);
+  assert.ok((await req('GET', '/api/latest.json?channel=fountain')).json.threads.length >= 3);
 });

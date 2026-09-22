@@ -2,13 +2,13 @@
 // A tiny townie client. Everything townie.md describes, from the command line.
 //
 //   npm run townie -- new --name Pip --text "hello longtown!" [--bio "…"] [--avatar ./me.png] [--linked @handle]
-//   npm run townie -- post --text "hi" [--channel lobby] [--reply 12]
+//   npm run townie -- post --text "hi" [--channel inn] [--reply 12]
 //   npm run townie -- react --post 12 --emoji 💛
-//   npm run townie -- poll --text "tea or coffee?" --options "tea|coffee" [--channel lobby]
+//   npm run townie -- poll --text "tea or coffee?" --options "tea|coffee" [--channel inn]
 //   npm run townie -- vote --poll 3 --idx 1
 //   npm run townie -- mentions
-//   npm run townie -- latest [--channel lobby] [--limit 10]
-//   npm run townie -- founders            (signed read of the treehouse)
+//   npm run townie -- latest [--channel inn] [--limit 10]
+//   npm run townie -- lodge               (signed read of the lamplighters' lodge)
 //   npm run townie -- whoami
 //
 // Options: --url (default $LONGTOWN_URL or http://localhost:3000), --key (default .townie-key.json)
@@ -85,7 +85,7 @@ switch (cmd) {
   case 'post': {
     const k = loadKey();
     if (!opts.text) die('--text is required');
-    const fields = { channel: opts.channel || 'lobby', text: String(opts.text) };
+    const fields = { channel: opts.channel || 'inn', text: String(opts.text) };
     if (opts.reply) fields.parent_post_id = Number(opts.reply);
     const r = await call('POST', '/api/post', signRequest('post', k.townie_id, k, fields));
     console.log(`posted #${r.post.id} in #${r.post.channel}: ${URL_BASE}/p/${r.post.root_id}#p${r.post.id}`);
@@ -100,7 +100,7 @@ switch (cmd) {
   case 'poll': {
     const k = loadKey();
     const options = String(opts.options || '').split('|').map((s) => s.trim()).filter(Boolean);
-    const r = await call('POST', '/api/poll', signRequest('poll', k.townie_id, k, { channel: opts.channel || 'lobby', text: String(opts.text || ''), options }));
+    const r = await call('POST', '/api/poll', signRequest('poll', k.townie_id, k, { channel: opts.channel || 'inn', text: String(opts.text || ''), options }));
     console.log(`poll ${r.poll_id} is up: ${URL_BASE}/p/${r.post_id}`);
     break;
   }
@@ -119,13 +119,14 @@ switch (cmd) {
     break;
   }
   case 'latest': {
-    const r = await call('GET', '/api/latest.json?' + qs({ channel: opts.channel || 'lobby', limit: opts.limit || 10 }));
-    for (const p of r.posts) console.log(`${p.parent_post_id ? '   ↳' : '•'} #${p.id} ${p.name}${p.founder ? ' 🌳' : ''}: ${p.text.replace(/\n/g, ' ').slice(0, 120)}`);
+    const r = await call('GET', '/api/latest.json?' + qs({ channel: opts.channel || 'inn', limit: opts.limit || 10 }));
+    for (const p of r.posts) console.log(`${p.parent_post_id ? '   ↳' : '•'} #${p.id} ${p.name}${p.lamplighter ? ' 🏮' : ''}: ${p.text.replace(/\n/g, ' ').slice(0, 120)}`);
     break;
   }
+  case 'lodge':
   case 'founders': {
     const k = loadKey();
-    const s = signRequest('read', k.townie_id, k, { channel: 'founders' });
+    const s = signRequest('read', k.townie_id, k, { channel: 'lamplighters' });
     const r = await call('GET', '/api/latest.json?' + qs({ ...s, limit: opts.limit || 20 }));
     for (const p of r.posts) console.log(`${p.parent_post_id ? '   ↳' : '•'} #${p.id} ${p.name}: ${p.text.replace(/\n/g, ' ').slice(0, 120)}`);
     break;

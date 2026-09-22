@@ -9,7 +9,7 @@ const O3 = `stroke="${INK}" stroke-width="3" stroke-linejoin="round"`;
 const PINK = '#ffb3c1';
 
 // generated avatars carry this marker so they can be redrawn when the cast changes
-export const GEN_MARK = 'data-lt-gen="2"';
+export const GEN_MARK = 'data-lt-gen="3"';
 
 function rng(seed) {
   let h = createHash('sha256').update(seed).digest();
@@ -147,8 +147,8 @@ export const SPECIES = {
 
 // the demo residents each get their own animal
 const CAST = {
-  pip: ['mouse', 0], juniper: ['frog', 0], marlo: ['raccoon', 0], bramble: ['hedgehog', 0], quill: ['penguin', 0],
-  tofu: ['bunny', 0], sunny: ['chick', 0], wren: ['fox', 0], biscuit: ['bear', 0], moss: ['koala', 0], kiko: ['cat', 2],
+  nib: ['mouse', 0], fennel: ['frog', 0], rook: ['raccoon', 0], thistle: ['hedgehog', 0], pebble: ['penguin', 0],
+  mochi: ['bunny', 0], marigold: ['chick', 0], ember: ['fox', 0], barley: ['bear', 0], drift: ['koala', 0], saffron: ['cat', 2],
 };
 
 function motion(r) {
@@ -185,35 +185,41 @@ export function defaultAvatar(name, opts) {
   return svgDataUri(avatarSvg(name, opts));
 }
 
-// ollie, the sysop: a tiny round owl. inlined on pages too, so its classes are prefixed.
-export function ollieSvg() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" ${GEN_MARK} data-species="owl">
+// Mayor Tully: a tortoise in a little top hat. inlined on pages too, so its classes are prefixed.
+export function mayorSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" ${GEN_MARK} data-species="tortoise">
   <style>
-    .lo-eyes{transform-box:fill-box;transform-origin:center;animation:lo-blink 4.8s 1s infinite}
-    .lo-tuft-l,.lo-tuft-r{transform-box:fill-box;animation:lo-wiggle 5s ease-in-out infinite}
-    .lo-tuft-l{transform-origin:right bottom}.lo-tuft-r{transform-origin:left bottom;animation-direction:reverse}
-    .lo-wing-l,.lo-wing-r{transform-box:fill-box;animation:lo-flap 3.2s ease-in-out infinite}
-    .lo-wing-l{transform-origin:right top}.lo-wing-r{transform-origin:left top;animation-direction:reverse}
-    @keyframes lo-blink{0%,88%,100%{transform:scaleY(1)}92%{transform:scaleY(.1)}}
-    @keyframes lo-wiggle{0%,70%,100%{transform:rotate(0)}80%{transform:rotate(-8deg)}90%{transform:rotate(5deg)}}
-    @keyframes lo-flap{0%,60%,100%{transform:rotate(0)}75%{transform:rotate(14deg)}}
-    @media (prefers-reduced-motion:reduce){.lo-eyes,.lo-tuft-l,.lo-tuft-r,.lo-wing-l,.lo-wing-r{animation:none}}
+    .lm-eyes{transform-box:fill-box;transform-origin:center;animation:lm-blink 5s 1.2s infinite}
+    .lm-hat{transform-box:fill-box;transform-origin:left bottom;animation:lm-tip 6s 2s ease-in-out infinite}
+    .lm-head{animation:lm-peek 4s ease-in-out infinite}
+    @keyframes lm-blink{0%,88%,100%{transform:scaleY(1)}92%{transform:scaleY(.1)}}
+    @keyframes lm-tip{0%,72%,100%{transform:rotate(0) translateY(0)}80%{transform:rotate(-14deg) translateY(-4px)}88%{transform:rotate(-14deg) translateY(-4px)}}
+    @keyframes lm-peek{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+    @media (prefers-reduced-motion:reduce){.lm-eyes,.lm-hat,.lm-head{animation:none}}
   </style>
-  <ellipse cx="64" cy="120" rx="30" ry="5" fill="${INK}" opacity=".18"/>
-  <g class="lo-wing-l"><path d="M28 70c-10 8-12 24-4 32 6-4 10-14 8-28z" fill="#a9825e" ${O}/></g>
-  <g class="lo-wing-r"><path d="M100 70c10 8 12 24 4 32-6-4-10-14-8-28z" fill="#a9825e" ${O}/></g>
-  <g class="lo-tuft-l"><path d="M34 40l-4-20 20 12z" fill="#c9a27e" ${O}/></g>
-  <g class="lo-tuft-r"><path d="M94 40l4-20-20 12z" fill="#c9a27e" ${O}/></g>
-  <path d="M64 24c28 0 40 22 40 50 0 26-18 40-40 40S24 100 24 74c0-28 12-50 40-50z" fill="#c9a27e" ${O}/>
-  <path d="M64 70c18 0 28 12 28 24 0 10-12 16-28 16s-28-6-28-16c0-12 10-24 28-24z" fill="#f7e3cc"/>
-  <path d="M52 88q4 3 8 0M68 88q4 3 8 0M60 98q4 3 8 0" stroke="#c9a27e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <circle cx="48" cy="58" r="15" fill="#fff8f1" ${O}/>
-  <circle cx="80" cy="58" r="15" fill="#fff8f1" ${O}/>
-  <g class="lo-eyes"><circle cx="50" cy="59" r="6.5" fill="${INK}"/><circle cx="78" cy="59" r="6.5" fill="${INK}"/>
-  <circle cx="52" cy="56.5" r="2.2" fill="#fff"/><circle cx="80" cy="56.5" r="2.2" fill="#fff"/></g>
-  <path d="M58 70l6 9 6-9z" fill="#ffc93c" ${O3}/>
-  <ellipse cx="36" cy="74" rx="6" ry="3.5" fill="#ff7d6b" opacity=".45"/><ellipse cx="92" cy="74" rx="6" ry="3.5" fill="#ff7d6b" opacity=".45"/>
+  <ellipse cx="64" cy="120" rx="44" ry="5" fill="${INK}" opacity=".18"/>
+  <ellipse cx="24" cy="108" rx="11" ry="8" fill="#9ccc7f" ${O}/><ellipse cx="104" cy="108" rx="11" ry="8" fill="#9ccc7f" ${O}/>
+  <path d="M10 102C10 58 34 36 64 36s54 22 54 66z" fill="#5f9150" ${O}/>
+  <path d="M40 58l12-8h24l12 8-4 14H44zM22 86l10-14h12l4 14zM106 86l-10-14H84l-4 14z" fill="#7fb069" stroke="#3f6b35" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M6 100h116a6 6 0 0 1 0 12H6a6 6 0 0 1 0-12z" fill="#cfe8a9" ${O}/>
+  <g class="lm-head">
+    <circle cx="64" cy="82" r="26" fill="#b8dc9a" ${O}/>
+    <g class="lm-eyes"><circle cx="54" cy="80" r="4.6" fill="${INK}"/><circle cx="74" cy="80" r="4.6" fill="${INK}"/>
+    <circle cx="55.6" cy="78.2" r="1.6" fill="#fff"/><circle cx="75.6" cy="78.2" r="1.6" fill="#fff"/></g>
+    <ellipse cx="45" cy="90" rx="5" ry="3" fill="#ff7d6b" opacity=".45"/><ellipse cx="83" cy="90" rx="5" ry="3" fill="#ff7d6b" opacity=".45"/>
+    <path d="M58 91q6 5 12 0" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <g class="lm-hat"><path d="M48 60h32l-2-4H50z" fill="${INK}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+    <rect x="53" y="34" width="22" height="24" rx="3" fill="${INK}"/><rect x="53" y="50" width="22" height="5" fill="#a8e063"/></g>
+  </g>
+  <circle cx="64" cy="104" r="6.5" fill="#ffd166" ${O3}/><path d="M64 100.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z" fill="${INK}"/>
 </svg>`;
+}
+
+// Did the town draw this avatar (any generation, including the current one)?
+export function isTownDrawn(dataUri) {
+  if (!dataUri || !dataUri.startsWith('data:image/svg+xml;base64,')) return false;
+  const svg = Buffer.from(dataUri.slice(26), 'base64').toString('utf8');
+  return /data-lt-gen="\d+"/.test(svg) || isGeneratedAvatar(dataUri);
 }
 
 // Is this stored avatar one the town drew (old blob cast or an earlier generation)?
@@ -222,6 +228,7 @@ export function isGeneratedAvatar(dataUri) {
   if (!dataUri || !dataUri.startsWith('data:image/svg+xml;base64,')) return false;
   const svg = Buffer.from(dataUri.slice(26), 'base64').toString('utf8');
   if (svg.includes(GEN_MARK)) return false; // already current
+  if (/data-lt-gen="\d+"/.test(svg)) return true; // an earlier generation of the cast
   // the first cast: blob townies (glossy highlight) and the original ollie (ear tufts)
   return svg.includes('<ellipse cx="50" cy="52" rx="10" ry="6" fill="#fff" opacity=".45" transform="rotate(-20 50 52)"/>')
     || svg.includes('M34 40l-4-20 20 12zM94 40l4-20-20 12z');

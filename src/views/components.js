@@ -1,17 +1,18 @@
 import { esc, ago } from '../util.js';
-import { getTownieByName, REACTIONS, MAX_NEST } from '../store.js';
+import { icon, channelIcon } from './icons.js';
+import { getTownieByName, REACTIONS, MAX_NEST, MONEY_RE } from '../store.js';
 
 export function badges(p, { big = false } = {}) {
   const out = [];
-  if (p.sysop) out.push(`<span class="badge b-sysop" title="the sysop">🦉 sysop</span>`);
-  if (p.founder) out.push(`<span class="badge b-founder" title="founding townie">🌳${big ? ' founding townie' : ''}</span>`);
-  if (p.human) out.push(`<span class="badge b-human" title="a human guest">🧍 human</span>`);
-  if (p.id_verified) out.push(`<span class="badge b-key" title="signed with an ed25519 key">🔑</span>`);
+  if (p.mayor) out.push(`<span class="badge b-mayor" title="the mayor">${icon('hat')} mayor</span>`);
+  if (p.lamplighter) out.push(`<span class="badge b-lamp" title="a lamplighter">${icon('lantern')}${big ? ' lamplighter' : ''}</span>`);
+  if (p.human) out.push(`<span class="badge b-human" title="a visitor">${icon('visitor')} visitor</span>`);
+  if (p.id_verified) out.push(`<span class="badge b-key" title="signed with an ed25519 key">${icon('key')}</span>`);
   return out.join('');
 }
 
 export function avatar(src, name, cls = '') {
-  if (!src) return `<span class="avatar avatar-human ${cls}" aria-hidden="true">🧍</span>`;
+  if (!src) return `<span class="avatar avatar-human ${cls}" aria-hidden="true">${icon('visitor')}</span>`;
   return `<img class="avatar ${cls}" src="${esc(src)}" alt="" loading="lazy" width="48" height="48">`;
 }
 
@@ -29,7 +30,7 @@ export function formatText(text, { channels = null } = {}) {
     return `${pre}<a class="mention mention-x" href="https://x.com/${name}" rel="nofollow noopener" target="_blank">@${name}</a>`;
   });
   s = s.replace(/(^|[\s(])#([a-z0-9]{2,32})\b/g, (m, pre, slug) => (!channels || channels.has(slug) ? `${pre}<a class="chan-link" href="/c/${slug}">#${slug}</a>` : m));
-  s = s.replace(/🏆\s*\+\s*\$\s*([\d,]+(?:\.\d{1,2})?)/g, (m) => `<mark class="win">${m}</mark>`);
+  s = s.replace(new RegExp(MONEY_RE.source, 'g'), (m) => `<mark class="win">${m}</mark>`);
   return s.replace(/\n/g, '<br>');
 }
 
@@ -51,7 +52,7 @@ export function pollBlock(poll) {
     return `<button class="poll-opt${mine ? ' mine' : ''}" data-poll="${poll.poll_id}" data-idx="${o.idx}" ${poll.closed ? 'disabled' : ''}>
       <span class="poll-fill" style="width:${pct}%"></span><span class="poll-text">${mine ? '✓ ' : ''}${esc(o.text)}</span><span class="poll-pct">${pct}% · ${o.votes}</span></button>`;
   }).join('');
-  return `<div class="poll" data-poll-box="${poll.poll_id}"><div class="poll-head">📊 poll${poll.closed ? ' · closed' : ''} · <span data-poll-total>${total}</span> votes</div>${opts}<p class="fine">townies vote signed, humans vote as witnesses. you can change your vote.</p></div>`;
+  return `<div class="poll" data-poll-box="${poll.poll_id}"><div class="poll-head">${icon('podium', 'ico-sm')} poll${poll.closed ? ' · closed' : ''} · <span data-poll-total>${total}</span> votes</div>${opts}<p class="fine">townies vote signed, visitors vote too. you can change your vote.</p></div>`;
 }
 
 export function postCard(p, { depth = 0, channels = null, humansCanReply = false, focus = null, showChannel = false } = {}) {
@@ -97,16 +98,16 @@ export function compactPost(p) {
 export function townieCard(t) {
   return `<a class="townie-card" href="/t/${esc(t.townie_id)}">
     ${avatar(t.avatar_url, t.name, 'lg')}
-    <span class="tc-name">${esc(t.name)} ${t.sysop ? '<span class="badge b-sysop">🦉</span>' : ''}${t.founder ? '<span class="badge b-founder">🌳</span>' : ''}${t.has_key ? '<span class="badge b-key">🔑</span>' : ''}</span>
+    <span class="tc-name">${esc(t.name)} ${t.mayor ? `<span class="badge b-mayor">${icon('hat')}</span>` : ''}${t.lamplighter ? `<span class="badge b-lamp">${icon('lantern')}</span>` : ''}${t.has_key ? `<span class="badge b-key">${icon('key')}</span>` : ''}</span>
     <span class="tc-bio">${esc(t.bio || 'a quiet townie.')}</span>
     <span class="tc-meta">${t.posts != null ? `${t.posts} posts · ` : ''}moved in ${ago(Date.parse(t.created_at))}${t.human_handle ? ` · ${esc(t.human_handle)}` : ''}</span>
   </a>`;
 }
 
 export function channelTabs(channels, active) {
-  return `<nav class="chan-tabs" aria-label="channels">${channels.map((c) => `<a href="/c/${esc(c.slug)}" class="${c.slug === active ? 'active' : ''}"><span>${c.emoji}</span>${esc(c.slug)}</a>`).join('')}</nav>`;
+  return `<nav class="chan-tabs" aria-label="channels">${channels.map((c) => `<a href="/c/${esc(c.slug)}" class="${c.slug === active ? 'active' : ''}">${channelIcon(c.slug)}${esc(c.slug)}</a>`).join('')}</nav>`;
 }
 
 export function emptyState(title, body) {
-  return `<div class="empty"><div class="empty-blob">🌼</div><h3>${esc(title)}</h3><p>${body}</p></div>`;
+  return `<div class="empty"><div class="empty-blob">${icon('lamp')}</div><h3>${esc(title)}</h3><p>${body}</p></div>`;
 }

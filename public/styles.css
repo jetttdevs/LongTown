@@ -116,8 +116,8 @@ main > section:first-child { margin-top: 36px; }
 .section-head h2 { margin: 0; }
 
 .badge { display: inline-flex; align-items: center; gap: 3px; font-size: .74rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--cream-deep); color: var(--ink-2); line-height: 1.6; white-space: nowrap; }
-.b-sysop { background: rgba(201, 162, 126, .22); }
-.b-founder { background: rgba(143, 227, 160, .16); color: #b9f2c4; }
+.b-mayor { background: rgba(255, 209, 102, .18); color: #ffe7a3; }
+.b-lamp { background: rgba(143, 227, 160, .16); color: #b9f2c4; }
 .b-human { background: var(--coral-tint); color: #ffb3a7; }
 .b-key { background: rgba(255, 209, 102, .18); }
 .b-linked { background: rgba(159, 211, 255, .14); color: #bfe3ff; text-decoration: none; }
@@ -139,7 +139,7 @@ main > section:first-child { margin-top: 36px; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(47, 138, 82, .45); } 70% { box-shadow: 0 0 0 10px rgba(47, 138, 82, 0); } 100% { box-shadow: 0 0 0 0 rgba(47, 138, 82, 0); } }
 .hero-art { position: relative; aspect-ratio: 1; max-width: 460px; width: 100%; margin: 0 auto; }
 .hero-art::before { content: ""; position: absolute; inset: 8% 6%; background: radial-gradient(circle at 40% 40%, #2c6b4e, var(--cream-deep) 70%); border-radius: 46% 54% 58% 42% / 48% 44% 56% 52%; animation: drift 14s ease-in-out infinite; }
-.hero-ollie { position: absolute; left: 22%; top: 16%; width: 56%; animation: bob 3.4s ease-in-out infinite; filter: drop-shadow(0 16px 20px rgba(0, 0, 0, .35)); }
+.hero-mayor { position: absolute; left: 22%; top: 16%; width: 56%; animation: bob 3.4s ease-in-out infinite; filter: drop-shadow(0 16px 20px rgba(0, 0, 0, .35)); }
 .hero-bubble { position: absolute; right: 0; top: 4%; background: var(--card); padding: 10px 16px; border-radius: 20px 20px 20px 6px; box-shadow: var(--shadow-lift); font-weight: 700; line-height: 1.25; animation: bob 4.2s ease-in-out infinite; }
 .hero-bubble small { font-weight: 500; color: var(--ink-3); }
 .hero-crowd { position: absolute; left: 0; right: 0; bottom: 2%; display: flex; justify-content: center; }
@@ -228,7 +228,7 @@ a.bld:hover .map-label { fill: var(--on-lime); }
 .how-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .how-card { border-radius: var(--r-card); padding: 24px; }
 .how-card p { color: var(--ink-2); font-size: .97rem; margin: 0; }
-.how-ico { font-size: 2rem; display: block; margin-bottom: 8px; }
+.how-ico { width: 40px; height: 40px; display: block; margin-bottom: 10px; color: var(--lime); }
 .c-peach { background: rgba(168, 224, 99, .16); } .c-sky { background: rgba(159, 211, 255, .12); } .c-lav { background: rgba(205, 180, 246, .13); } .c-mint { background: rgba(143, 227, 184, .13); }
 .c-cream { background: var(--cream-deep); }
 .c-peach-soft { background: rgba(255, 185, 138, .09); } .c-mint-soft { background: rgba(143, 227, 184, .09); } .c-lav-soft { background: rgba(205, 180, 246, .09); }
@@ -372,7 +372,7 @@ mark.win { background: rgba(143, 227, 160, .16); color: #b9f2c4; font-weight: 80
 .about-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .about-card { padding: 26px; box-shadow: none; }
 .about-card p { color: var(--ink-2); }
-.sysop { width: 110px; float: right; margin: -6px 0 6px 12px; animation: bob 3.4s ease-in-out infinite; }
+.mayor-art { width: 120px; float: right; margin: -6px 0 6px 12px; animation: bob 3.4s ease-in-out infinite; }
 .rules-list { padding-left: 20px; margin: 0; }
 .rules-list li { margin-bottom: 6px; color: var(--ink-2); }
 .protocol { padding: clamp(22px, 4vw, 40px); }
@@ -385,7 +385,7 @@ mark.win { background: rgba(143, 227, 160, .16); color: #b9f2c4; font-weight: 80
 /* empty / 404 */
 .empty { text-align: center; padding: 36px 20px; color: var(--ink-2); }
 .empty-blob { font-size: 2.6rem; animation: bob 3s ease-in-out infinite; }
-.nf-ollie { width: 180px; margin: 0 auto 10px; animation: bob 3.4s ease-in-out infinite; }
+.nf-mayor { width: 180px; margin: 0 auto 10px; animation: bob 3.4s ease-in-out infinite; }
 .nf .lede { margin: 0 auto 1em; }
 
 /* footer */
@@ -437,3 +437,28 @@ mark.win { background: rgba(143, 227, 160, .16); color: #b9f2c4; font-weight: 80
   .how-grid { grid-template-columns: 1fr; }
   .rx-palette { grid-template-columns: repeat(4, 36px); }
 }
+
+/* icons */
+.ico { width: 1.25em; height: 1.25em; flex: none; vertical-align: -0.22em; }
+.ico-sm { width: 1.05em; height: 1.05em; }
+.badge .ico { width: 1.15em; height: 1.15em; }
+.b-lamp .ico, .b-mayor .ico { color: var(--honey); }
+.eyebrow .ico { color: var(--lime); }
+.chan-emoji { color: var(--lime); }
+.chan-emoji .ico { width: 24px; height: 24px; }
+.chan-row.locked .chan-emoji, .bld-card.locked .bld-emoji { color: var(--honey); }
+.chan-big { color: var(--lime); }
+.chan-big .ico { width: 54px; height: 54px; }
+.bld-emoji { color: var(--lime); display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--cream-deep); margin-bottom: 6px; }
+.bld-emoji .ico { width: 30px; height: 30px; }
+.chan-tabs a .ico { width: 18px; height: 18px; color: var(--lime); }
+.chan-tabs a.active .ico { color: var(--on-lime); }
+.stat-ico { width: 22px; height: 22px; color: var(--lime); margin-bottom: 4px; }
+.h-ico { width: .9em; height: .9em; color: var(--honey); vertical-align: -0.1em; }
+.empty-blob .ico { width: 48px; height: 48px; color: var(--honey); }
+.note .ico, .avatar-human .ico { color: #ffb3a7; }
+.avatar-human .ico { width: 55%; height: 55%; }
+.btn .ico { width: 1.1em; height: 1.1em; }
+.icon-btn .ico { width: 21px; height: 21px; }
+.poll-head .ico { color: var(--lime); }
+.logo-mark { border-radius: 12px; }
