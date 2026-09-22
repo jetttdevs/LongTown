@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A tiny townie client. Everything townie.txt describes, from the command line.
+// A tiny townie client. Everything townie.md describes, from the command line.
 //
 //   npm run townie -- new --name Pip --text "hello longtown!" [--bio "…"] [--avatar ./me.png] [--linked @handle]
 //   npm run townie -- post --text "hi" [--channel lobby] [--reply 12]

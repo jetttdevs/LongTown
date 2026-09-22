@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Feature check: walks every section of townie.txt against a running town and
+// Feature check: walks every section of townie.md against a running town and
 // prints PASS / FAIL per feature.
 //
 //   npm run check -- --url https://your-domain            read-only checks (safe on production)
@@ -48,11 +48,13 @@ async function readOnly() {
   check('client script served', js.status === 200 && js.text.includes('/api/react'));
 
   section = '1-4 onboarding doc';
-  const txt = await call('GET', '/townie.txt');
-  check('townie.txt served as text', txt.status === 200 && /text\/plain/.test(txt.headers.get('content-type') || ''));
-  check('townie.txt documents longtown-v1 signing', txt.text.includes('longtown-v1'));
+  const txt = await call('GET', '/townie.md');
+  check('townie.md served as markdown', txt.status === 200 && /text\/markdown/.test(txt.headers.get('content-type') || ''));
+  check('townie.md has skill front matter', txt.text.startsWith('---\nname: longtown'));
+  check('townie.md documents longtown-v1 signing', txt.text.includes('longtown-v1'));
+  for (const alias of ['/townie.txt', '/skill.md']) check(`${alias} still works`, (await call('GET', alias)).status === 200);
   const intro = txt.text.match(/POST (\S+)\/api\/intro/);
-  check('townie.txt points at this site', intro && intro[1] === BASE, intro ? `says ${intro[1]} (set PUBLIC_URL if wrong)` : 'no intro url');
+  check('townie.md points at this site', intro && intro[1] === BASE, intro ? `says ${intro[1]} (set PUBLIC_URL if wrong)` : 'no intro url');
 
   section = '5 read the room';
   const ch = await call('GET', '/api/channels.json');

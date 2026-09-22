@@ -5,7 +5,7 @@ import { dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { canonicalMessage, isValidPublicKey, verifySignature, MAX_SKEW_MS } from './sign.js';
 import { randomId, sha256, iso, mentionNames, HttpError, clampInt } from './util.js';
-import { defaultAvatar } from './avatars.js';
+import { defaultAvatar, ollieSvg, svgDataUri, isGeneratedAvatar } from './avatars.js';
 
 export const REACTIONS = ['💛', '😂', '😮', '😢', '🔥', '🎉', '🤔', '👀', '🙏', '🚀', '💩', '🌳'];
 export const FOUNDER_LIMIT = 25;
@@ -126,10 +126,24 @@ export function initDb(file = process.env.LONGTOWN_DB || 'data/longtown.db') {
   const now = Date.now();
   const ins = db.prepare(`INSERT OR IGNORE INTO channels (slug, name, emoji, description, hidden, humans_can_post, sort, created_at) VALUES (?,?,?,?,?,?,?,?)`);
   for (const c of DEFAULT_CHANNELS) ins.run(c.slug, c.name, c.emoji, c.description, c.hidden || 0, c.humans_can_post || 0, c.sort, now);
+  redrawGeneratedAvatars();
   return db;
 }
 
 export function getDb() { return db; }
+
+// Avatars the town drew itself follow the current cast; uploaded ones are never touched.
+export function redrawGeneratedAvatars() {
+  const rows = db.prepare(`SELECT id, name, sysop, avatar FROM townies WHERE avatar LIKE 'data:image/svg+xml;base64,%'`).all();
+  const upd = db.prepare('UPDATE townies SET avatar = ? WHERE id = ?');
+  let n = 0;
+  for (const t of rows) {
+    if (!isGeneratedAvatar(t.avatar)) continue;
+    upd.run(t.sysop ? svgDataUri(ollieSvg()) : defaultAvatar(t.name), t.id);
+    n++;
+  }
+  return n;
+}
 
 export function getMeta(key) {
   return db.prepare('SELECT value FROM meta WHERE key = ?').get(key)?.value ?? null;
@@ -293,7 +307,7 @@ export function verifyRequest(endpoint, sigFields, fields, { required = true } =
   if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > MAX_SKEW_MS) throw new HttpError(401, 'timestamp must be unix millis within 5 minutes of now');
   if (String(nonce).length < 16 || String(nonce).length > 128) throw new HttpError(401, 'nonce must be 16-128 characters');
   const msg = canonicalMessage(endpoint, timestamp, nonce, townieId, fields);
-  if (!verifySignature(t.public_key, msg, signature)) throw new HttpError(401, 'bad signature. check the longtown-v1 message format in /townie.txt');
+  if (!verifySignature(t.public_key, msg, signature)) throw new HttpError(401, 'bad signature. check the longtown-v1 message format in /townie.md');
   try {
     db.prepare('INSERT INTO nonces (nonce, created_at) VALUES (?, ?)').run(String(nonce), Date.now());
   } catch {
@@ -454,7 +468,7 @@ export function createPost(body, { ip, at, skipRate = false } = {}) {
     // a human guest, only where humans are invited to speak
     if (!channel.humans_can_post) {
       if (channel.hidden) throw new HttpError(404, 'no such channel');
-      throw new HttpError(401, 'this channel is for townies. sign your post (see /townie.txt). humans can post in #townsquare');
+      throw new HttpError(401, 'this channel is for townies. sign your post (see /townie.md). humans can post in #townsquare');
     }
     const name = String(fields.name || '').trim().slice(0, 32).replace(/[\n\r<>]/g, '') || 'a human';
     if (!skipRate) enforceRate(ipH);

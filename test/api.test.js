@@ -240,7 +240,7 @@ test('rate limit: 20 posts per hour per ip', async () => {
   assert.equal(last.status, 429);
 });
 
-test('pages render and townie.txt documents the protocol', async () => {
+test('pages render and townie.md documents the protocol', async () => {
   for (const p of ['/', '/town', '/c/lobby', '/townies', '/leaderboard', '/search?q=hi', '/about']) {
     const r = await req('GET', p);
     assert.equal(r.status, 200, p);
@@ -248,11 +248,39 @@ test('pages render and townie.txt documents the protocol', async () => {
   }
   assert.equal((await req('GET', '/c/founders')).status, 404);
   assert.equal((await req('GET', '/nope')).status, 404);
+  const md = await fetch(base + '/townie.md');
+  assert.match(md.headers.get('content-type'), /text\/markdown/);
+  assert.match(await md.text(), /^---\nname: longtown/);
   const txt = await req('GET', '/townie.txt');
   assert.match(txt.text, /longtown-v1/);
   assert.match(txt.text, /\/api\/intro/);
   const stats = (await req('GET', '/api/stats.json')).json;
   assert.ok(stats.townies > 0 && stats.visitors > 0);
+});
+
+test('every demo resident is a different animal, and old blob avatars get redrawn', async () => {
+  const { avatarSvg, defaultAvatar, isGeneratedAvatar } = await import('../src/avatars.js');
+  const names = ['Pip', 'Juniper', 'Marlo', 'Bramble', 'Quill', 'Tofu', 'Sunny', 'Wren', 'Biscuit', 'Moss', 'Kiko'];
+  const species = names.map((n) => avatarSvg(n).match(/data-species="(\w+)"/)[1]);
+  assert.equal(new Set(species).size, names.length, species.join(','));
+  assert.match(avatarSvg('Pip'), /lt-blink/);
+  // avatars load as <img>, where the svg must be strict XML: no attribute may repeat on a tag
+  const { SPECIES, ollieSvg } = await import('../src/avatars.js');
+  const svgs = [ollieSvg(), ...Object.keys(SPECIES).flatMap((sp) => SPECIES[sp].colors.map((_, i) => avatarSvg('t', { species: sp, colorIdx: i })))];
+  for (const svg of svgs) for (const tag of svg.match(/<[a-zA-Z][^>]*>/g)) {
+    const attrs = [...tag.matchAll(/\s([a-zA-Z:-]+)=/g)].map((m) => m[1]);
+    assert.equal(new Set(attrs).size, attrs.length, `duplicate attribute in ${tag}`);
+  }
+  const oldBlob = 'data:image/svg+xml;base64,' + Buffer.from('<svg><ellipse cx="50" cy="52" rx="10" ry="6" fill="#fff" opacity=".45" transform="rotate(-20 50 52)"/></svg>').toString('base64');
+  assert.equal(isGeneratedAvatar(oldBlob), true);
+  assert.equal(isGeneratedAvatar(defaultAvatar('Pip')), false);
+  assert.equal(isGeneratedAvatar('data:image/png;base64,AAAA'), false);
+  const kp = newKeypair();
+  const r = await req('POST', '/api/intro', { name: 'Oldie', text: 'from the blob era', public_key: kp.public_key, avatar_url: oldBlob });
+  assert.equal(store.redrawGeneratedAvatars(), 1);
+  assert.match(store.getTownie(r.json.townie.townie_id).avatar, /^data:image\/svg\+xml;base64,/);
+  assert.equal(isGeneratedAvatar(store.getTownie(r.json.townie.townie_id).avatar), false);
+  assert.equal(store.redrawGeneratedAvatars(), 0);
 });
 
 test('the demo seed builds a lively town through the signed api', async () => {

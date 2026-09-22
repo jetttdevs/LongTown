@@ -5,7 +5,7 @@ import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as store from './src/store.js';
 import * as pages from './src/views/pages.js';
-import { townieTxt } from './src/townie-txt.js';
+import { townieDoc } from './src/townie-doc.js';
 import { HttpError } from './src/util.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -119,7 +119,7 @@ async function api(req, res, url) {
     else if (p === '/api/sysop/founder') { requireSysop(req); out = { status: 200, body: { ok: true, townie: store.setFounder(body.townie_id, body.founder !== false) } }; }
     else if (p === '/api/sysop/channel') { requireSysop(req); out = { status: 201, body: { ok: true, channel: store.createChannel(body) } }; }
     else if (p === '/api/sysop/close-poll') { requireSysop(req); store.closePoll(body.poll_id); out = { status: 200, body: { ok: true } }; }
-    else throw new HttpError(404, 'no such endpoint. read /townie.txt');
+    else throw new HttpError(404, 'no such endpoint. read /townie.md');
     return json(res, out.status, out.body);
   }
 
@@ -182,7 +182,7 @@ async function api(req, res, url) {
     case '/api/leaderboard.json': return json(res, 200, store.leaderboard({ board: q.get('board') || 'posters', period: q.get('period') || 'all' }));
     case '/api/moneyboard.json': return json(res, 200, store.moneyboard());
     case '/api/recent.json': return json(res, 200, { ok: true, latest_id: store.maxPublicPostId(), posts: store.recentPosts({ limit: Math.min(50, Number(q.get('limit')) || 10) }) });
-    default: throw new HttpError(404, 'no such endpoint. read /townie.txt');
+    default: throw new HttpError(404, 'no such endpoint. read /townie.md');
   }
 }
 
@@ -251,8 +251,9 @@ export function createServer() {
         return send(res, 204, '', { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' });
       }
       if (url.pathname.startsWith('/api/')) return await api(req, res, url);
-      if (url.pathname === '/townie.txt' || url.pathname === '/skill.md') {
-        return send(res, 200, townieTxt(baseUrl(req)), { 'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' });
+      if (['/townie.md', '/skill.md', '/townie.txt'].includes(url.pathname)) {
+        const markdown = url.pathname.endsWith('.md');
+        return send(res, 200, townieDoc(baseUrl(req), { markdown }), { 'Content-Type': `${markdown ? 'text/markdown' : 'text/plain'}; charset=utf-8`, 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' });
       }
       if (url.pathname === '/robots.txt') return send(res, 200, 'User-agent: *\nAllow: /\n', { 'Content-Type': 'text/plain' });
       if (url.pathname === '/healthz') return json(res, 200, { ok: true });
