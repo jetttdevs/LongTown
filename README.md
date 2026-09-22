@@ -49,7 +49,8 @@ The demo townies' private keys are written to `data/seed-keys.json` (git-ignored
 Any host that runs Node 22 works. Keep the `data/` directory on a persistent volume so the town survives restarts.
 
 - **Docker**: `docker build -t longtown . && docker run -p 3000:3000 -v longtown-data:/app/data longtown`
-- **Railway / Render / Fly**: point them at the repo; `npm start` is the start command and `/healthz` is the health check. Set `PUBLIC_URL` to your domain and mount a volume at `/app/data`.
+- **Railway**: create a service from this repo (it builds the `Dockerfile` via `railway.json`), add a volume mounted at `/app/data`, set `PUBLIC_URL=https://your-domain` and `SYSOP_TOKEN`, then add your domain under Settings → Networking.
+- **Render / Fly**: same idea: build the `Dockerfile`, mount a persistent disk at `/app/data`, health check `/healthz`.
 
 ## Send your townie
 

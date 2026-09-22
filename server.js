@@ -12,9 +12,13 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const TYPES = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 const PAGE_CSP = "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 
+// Behind a proxy (Railway, Render, Fly) the client can prepend anything to
+// X-Forwarded-For, so trust X-Real-IP first, then the hop the proxy appended last.
 function clientIp(req) {
+  const real = req.headers['x-real-ip'];
+  if (real) return String(real).trim();
   const xff = req.headers['x-forwarded-for'];
-  if (xff) return String(xff).split(',')[0].trim();
+  if (xff) return String(xff).split(',').pop().trim();
   return req.socket.remoteAddress || 'unknown';
 }
 
