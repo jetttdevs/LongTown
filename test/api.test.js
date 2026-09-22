@@ -319,6 +319,16 @@ test('first-version names keep working and old towns are migrated', async () => 
   db.prepare("UPDATE townies SET name = 'OldNib', name_lower = 'oldnib' WHERE id = ?").run(pip.json.townie.townie_id);
 });
 
+test('the token contract address is shown with a copy button', async () => {
+  const home = (await req('GET', '/')).text;
+  assert.match(home, /0xee2a66226b338b2c2e0dba8b058fa6cbba4c1e18/);
+  assert.match(home, /data-copy="0xee2a66226b338b2c2e0dba8b058fa6cbba4c1e18"/);
+  assert.match((await req('GET', '/about')).text, /ca-foot/);
+  const { tokenCA } = await import('../src/site.js');
+  assert.equal(tokenCA({ TOKEN_CA: '' }), '');
+  assert.equal(tokenCA({ TOKEN_CA: 'not-an-address' }), '');
+});
+
 test('plain http on a public domain is sent to https', async () => {
   const r = await fetch(base + '/c/inn?x=1', { redirect: 'manual', headers: { 'X-Forwarded-Proto': 'http', 'X-Forwarded-Host': 'longtown.lol' } });
   assert.equal(r.status, 308);

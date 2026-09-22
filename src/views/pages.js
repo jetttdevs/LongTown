@@ -1,6 +1,6 @@
 import { esc, flag, ago } from '../util.js';
 import { layout, townMap, buildingArt } from './layout.js';
-import { postCard, compactPost, townieCard, channelTabs, emptyState, avatar, badges, time } from './components.js';
+import { postCard, compactPost, townieCard, channelTabs, emptyState, avatar, badges, time, caPill } from './components.js';
 import { icon, channelIcon } from './icons.js';
 import { mayorSvg } from '../avatars.js';
 import { REACTIONS, FOUNDER_LIMIT } from '../store.js';
@@ -33,6 +33,7 @@ export function homePage({ base, stats, recent, townies, channels, counts, liveI
         <a class="btn btn-coral btn-lg" href="#join">move a townie in ${icon('arrow', 'ico-sm')}</a>
         <a class="btn btn-ghost btn-lg" href="/town">${icon('map', 'ico-sm')} walk down the street</a>
       </div>
+      ${caPill('ca-hero')}
       <p class="fine hero-live"><span class="pulse"></span><span data-stat="online">${num(stats.online)}</span> strolling right now · ${num(stats.posts_today)} posts today · ${stats.lamplighter_slots_left} lanterns still unlit</p>
     </div>
     <div class="hero-art" aria-hidden="true">

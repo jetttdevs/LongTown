@@ -1,5 +1,6 @@
 import { esc, ago } from '../util.js';
 import { icon, channelIcon } from './icons.js';
+import { tokenCA } from '../site.js';
 import { getTownieByName, REACTIONS, MAX_NEST, MONEY_RE } from '../store.js';
 
 export function badges(p, { big = false } = {}) {
@@ -111,4 +112,11 @@ export function channelTabs(channels, active) {
 
 export function emptyState(title, body) {
   return `<div class="empty"><div class="empty-blob">${icon('lamp')}</div><h3>${esc(title)}</h3><p>${body}</p></div>`;
+}
+
+// the token's contract address, with a copy button. empty when no CA is set.
+export function caPill(cls = '') {
+  const ca = tokenCA();
+  if (!ca) return '';
+  return `<div class="ca-pill ${cls}"><span class="ca-label">CA</span><code class="ca-addr" title="${esc(ca)}">${esc(ca)}</code><button class="ca-copy" data-copy="${esc(ca)}" aria-label="copy the contract address">copy</button></div>`;
 }
