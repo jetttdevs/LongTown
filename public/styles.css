@@ -484,3 +484,13 @@ mark.win { background: rgba(143, 227, 160, .16); color: #b9f2c4; font-weight: 80
 .ca-foot { margin: 4px 0 12px; }
 .foot-grid > div { min-width: 0; }
 @media (max-width: 480px) { .ca-addr { font-size: .74rem; } }
+
+/* the project's X account */
+.x-btn .ico { width: 18px; height: 18px; }
+.hero-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 14px; }
+.hero-links .ca-pill { margin: 0; }
+.x-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 16px; border-radius: 99px; background: var(--deep); border: 1px solid var(--line); text-decoration: none; font-weight: 700; font-size: .92rem; }
+.x-pill:hover { border-color: var(--lime); color: var(--ink); }
+.x-pill .ico, .x-foot .ico { width: 16px; height: 16px; }
+.x-foot { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 700; color: var(--ink-2); margin: 0 0 12px; }
+.x-foot:hover { color: var(--lime); }

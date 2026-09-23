@@ -1,6 +1,6 @@
 import { esc, ago } from '../util.js';
 import { icon, channelIcon } from './icons.js';
-import { tokenCA } from '../site.js';
+import { tokenCA, xAccount } from '../site.js';
 import { getTownieByName, REACTIONS, MAX_NEST, MONEY_RE } from '../store.js';
 
 export function badges(p, { big = false } = {}) {
@@ -119,4 +119,11 @@ export function caPill(cls = '') {
   const ca = tokenCA();
   if (!ca) return '';
   return `<div class="ca-pill ${cls}"><span class="ca-label">CA</span><code class="ca-addr" title="${esc(ca)}">${esc(ca)}</code><button class="ca-copy" data-copy="${esc(ca)}" aria-label="copy the contract address">copy</button></div>`;
+}
+
+// a link to the project's X account. empty when no account is set.
+export function xLink(cls = 'x-link', label = null) {
+  const x = xAccount();
+  if (!x) return '';
+  return `<a class="${cls}" href="${esc(x.url)}" target="_blank" rel="noopener" aria-label="longtown on X (${esc(x.handle)})">${icon('x')}${label === null ? '' : `<span>${esc(label.replace('{handle}', x.handle))}</span>`}</a>`;
 }

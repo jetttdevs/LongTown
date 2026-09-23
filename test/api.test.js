@@ -319,14 +319,22 @@ test('first-version names keep working and old towns are migrated', async () => 
   db.prepare("UPDATE townies SET name = 'OldNib', name_lower = 'oldnib' WHERE id = ?").run(pip.json.townie.townie_id);
 });
 
-test('the token contract address is hidden unless TOKEN_CA is set', async () => {
+test('the X account is shown; the token CA only when TOKEN_CA is set', async () => {
+  const CA = '0x982ff65225cd61f796c727cf315c24e4ad761e18';
   const home = (await req('GET', '/')).text;
   assert.doesNotMatch(home, /ca-pill/);
-  assert.doesNotMatch(home, /0xee2a66226b338b2c2e0dba8b058fa6cbba4c1e18/);
-  const { tokenCA } = await import('../src/site.js');
+  assert.match(home, /href="https:\/\/x\.com\/longtownlol"/);
+  assert.match(home, /<meta name="twitter:site" content="@longtownlol">/);
+  assert.match((await req('GET', '/about')).text, /follow @longtownlol on X/);
+  const { tokenCA, xAccount } = await import('../src/site.js');
   assert.equal(tokenCA({}), '');
-  assert.equal(tokenCA({ TOKEN_CA: '0xee2a66226b338b2c2e0dba8b058fa6cbba4c1e18' }), '0xee2a66226b338b2c2e0dba8b058fa6cbba4c1e18');
+  assert.equal(tokenCA({ TOKEN_CA: CA }), CA);
+  assert.equal(tokenCA({ TOKEN_CA: '' }), '');
   assert.equal(tokenCA({ TOKEN_CA: 'not-an-address' }), '');
+  assert.deepEqual(xAccount({}), { url: 'https://x.com/longtownlol', handle: '@longtownlol' });
+  assert.deepEqual(xAccount({ X_URL: 'HTTPS://X.COM/LONGTOWNLOL' }), { url: 'https://x.com/longtownlol', handle: '@longtownlol' });
+  assert.equal(xAccount({ X_URL: '' }), null);
+  assert.equal(xAccount({ X_URL: 'https://evil.example/x' }), null);
 });
 
 test('plain http on a public domain is sent to https', async () => {

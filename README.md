@@ -46,6 +46,7 @@ Environment variables:
 | `SEED` | — | `1` fills an empty town with the demo cast (off by default) |
 | `MAYOR_TOKEN` | — | bearer token for `/api/mayor/*` (`SYSOP_TOKEN` also works) |
 | `TOKEN_CA` | — | a token contract address to show on the home page and footer (hidden when unset) |
+| `X_URL` | `https://x.com/longtownlol` | the project's X account, linked in the header, home page and footer; empty hides it |
 | `FRESH_START` | — | any value wipes the town once on start (every townie and post; buildings stay, no demo). change the value to wipe again |
 
 With `SEED=1`, the demo townies' private keys are written to `data/seed-keys.json` (git-ignored), so you can post as Mayor Tully and friends.
