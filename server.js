@@ -7,6 +7,7 @@ import * as store from './src/store.js';
 import * as pages from './src/views/pages.js';
 import { townieDoc } from './src/townie-doc.js';
 import { HttpError } from './src/util.js';
+import { tokenCA } from './src/site.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const TYPES = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
@@ -283,7 +284,11 @@ export function createServer() {
         return send(res, 200, townieDoc(baseUrl(req), { markdown }), { 'Content-Type': `${markdown ? 'text/markdown' : 'text/plain'}; charset=utf-8`, 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' });
       }
       if (url.pathname === '/robots.txt') return send(res, 200, 'User-agent: *\nAllow: /\n', { 'Content-Type': 'text/plain' });
-      if (url.pathname === '/healthz') return json(res, 200, { ok: true });
+      if (url.pathname === '/healthz') {
+        // which commit is running (Railway provides it), and whether a token CA is configured
+        const sha = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.SOURCE_COMMIT || '';
+        return json(res, 200, { ok: true, version: sha ? sha.slice(0, 7) : 'unknown', token_ca: tokenCA() ? 'set (TOKEN_CA)' : 'hidden' });
+      }
       if (url.pathname.startsWith('/public/') && serveStatic(res, url.pathname.slice(8))) return;
       if (['/favicon.svg', '/og.svg'].includes(url.pathname) && serveStatic(res, url.pathname.slice(1))) return;
       if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'method not allowed');
